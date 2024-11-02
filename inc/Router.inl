@@ -1,6 +1,7 @@
 #include <vector>
 #include <string>
 #include <regex>
+#include <utility>
 
 class UrlUtils 
 {
@@ -9,10 +10,12 @@ public:
 		Split(std::string_view spliting_string);
 
 	static std::vector<std::string>
-		SplitStream(const std::string& spliting_stream);
+		SplitString(const std::string& spliting_stream);
+
 
 	static void 
 		CheckUrlCorrectness(std::nothrow_t nthw, std::string_view url) noexcept;
+
 
 	static bool 
 		CheckUrlCorrectness(std::string_view url);
@@ -127,44 +130,178 @@ static std::string TrimString(
 
 
 template <class EndpointData_T>
+Router<EndpointData_T>::LNRIterator::LNRIterator(
+	Router<EndpointData_T>::native_iter_T nativeIter)
+	: m_nativeIter(nativeIter)
+{
+	// nothing
+};
+
+
+template <class EndpointData_T>
+typename Router<EndpointData_T>::native_iter_T
+Router<EndpointData_T>::LNRIterator::GetIterFromThis(Node_T* node) const
+{
+	auto parentDeepNativeIter = node->m_ptrParent->begin();
+	while (&*parentDeepNativeIter != node)
+	{
+		parentDeepNativeIter++;
+	}
+
+	return parentDeepNativeIter;
+};
+
+
+template <class EndpointData_T>
+Router<EndpointData_T>::LNRIterator::LNRIterator(
+	Router<EndpointData_T>::LNRIterator::reference node)
+	: m_nativeIter(GetIterFromThis(std::addressof(node)))
+{
+	// nothing
+};
+
+
+
+template <class EndpointData_T>
+typename Router<EndpointData_T>::LNRIterator&
 Router<EndpointData_T>::LNRIterator::operator++()
 {
-	if (m_node->m_ptrParentNode)
+	if (m_nativeIter != m_nativeIter->m_ptrParentNode.end())
+	{
+		m_nativeIter++;
+	} else
 	{
 		// we reached end of deep
 		// go to parent
-		m_node = m_node->m_ptrParentNode;
-	} else 
-	{
-		//
+		auto parent = m_nativeIter->m_ptrParentNode;
+		if (parent->m_ptrParentNode)
+		{
+			auto parentDeepNativeIter = parent->m_ptrParent->begin();
+			while (parentDeepNativeIter != parent->m_ptrParent->end())
+			{
+				parentDeepNativeIter++;
+			}
+
+			m_nativeIter = parentDeepNativeIter;
+		} else
+		{
+			// ub
+		}
 	}
-}
+};
+
+
+
+template <class EndpointData_T>
+typename Router<EndpointData_T>::LNRIterator
+Router<EndpointData_T>::LNRIterator::operator++(int)
+{
+	auto retNativeIter = m_nativeIter;
+	if (m_nativeIter != m_nativeIter->m_ptrParentNode.end())
+	{
+		m_nativeIter++;
+	} else
+	{
+		// we reached end of deep
+		// go to parent
+		auto parent = m_nativeIter->m_ptrParentNode;
+		if (parent->m_ptrParentNode)
+		{
+			auto parentDeepNativeIter = parent->m_ptrParent->begin();
+			while (parentDeepNativeIter != parent->m_ptrParent->end())
+			{
+				parentDeepNativeIter++;
+			}
+
+			m_nativeIter = parentDeepNativeIter;
+		} else
+		{
+			// ub
+		}
+	}
+
+
+	return LNRIterator{retNativeIter};
+};
+
+
+template <class EndpointData_T>
+typename Router<EndpointData_T>::LNRIterator::reference
+Router<EndpointData_T>::LNRIterator::operator*()
+{
+	return *m_nativeIter;
+};
+
+
+template <class EndpointData_T>
+typename Router<EndpointData_T>::LNRIterator
+Router<EndpointData_T>::begin() const
+{
+	return m_router.begin();
+};
+
+
+template <class EndpointData_T>
+typename Router<EndpointData_T>::LNRIterator
+Router<EndpointData_T>::end() const
+{
+	return m_router.end();
+};
 
 
 
 template <typename EndpointData_T> 
-template <typename String1, typename String2>
-// std::pair<Router<EndpointData_T>::iterator, bool>
-int
+template <typename String2>
+std::pair<typename Router<EndpointData_T>::iterator, bool>
+// int
 Router<EndpointData_T>::InsertRoute(
-	const String1& url
+	const std::string& url
 	, const EndpointData_T& value
 	, const String2& realm)
 {
 	if (UrlUtils::CheckUrlCorrectness(url))
 	{
-		auto trimmedUrlPath =
-			TrimString(url, '/');
+		auto urlPaths = UrlUtils::SplitString(
+			TrimString(url, '/'));
 
-		// construct and move
-		// m_router.put(path_type{trimmedUrlPath, '/'},
-		// 	Node_T{nullptr, realm, value});
+		size_t numCurrentPath = 0;
+		const size_t numPaths = urlPaths.size();
+
+		boost::optional child = m_router.get_child_optional(
+				path_type{urlPaths[0]});
+		// get child until possible
+		while (numCurrentPath < numPaths &&
+				child)
+		{
+			++numCurrentPath;
+			child = child.get_child_optional(
+				path_type{urlPaths[numCurrentPath]});
+		}
+		
+		if (child) // numCurrentPath == numPaths
+		{
+			return {LNRIterator{*child}, false};
+		} else 
+		{
+			// add last children
+			while (numCurrentPath < (numPaths - 1))
+			{
+				child = child.put(path_type{urlPaths[numCurrentPath]},
+					Node_T{&child});
+				++numCurrentPath;
+			}
+
+			child.put(path_type{urlPaths[numCurrentPath]},
+				Node_T{value, realm, &child});
+
+			return {LNRIterator{child.begin()}, true};
+		}
 	} else
 	{
 		throw "Invalid path";
 	}
 
-	return 0;
+	// not reached
 };
 
 

@@ -31,21 +31,33 @@ std::vector<std::string>
 	return splited_url; // RNVO
 }
 
-
+/**
+ * @param stringString presents 
+ * url path by standart without ending '/' 
+ * */
 std::vector<std::string>
-	UrlUtils::SplitStream(const std::string& spliting_string)
+	UrlUtils::SplitString(const std::string& splitingString)
 {
-    std::stringstream ss(spliting_string); 
-    
-    std::string token; 
-    std::vector<std::string> tokens; 
-    
-    char delimiter = '/'; 
+    constexpr char delimiter = '/'; 
+	auto numTokens = std::count(splitingString.cbegin(),
+		splitingString.cend(), '/') + 1;
+
+	std::vector<std::string> tokens;
+    tokens.reserve(numTokens);
   
-    while (getline(ss, token, delimiter)) { 
-        tokens.push_back(std::move(token)); 
+    size_t startPos = 0ul
+    		, endPos = 0ul;
+
+    while ((endPos = splitingString.find(delimiter, startPos)) !=
+    			std::string::npos)
+    {
+    	tokens.emplace_back(splitingString.data(),
+    	    startPos, endPos - startPos);
+    	startPos = endPos + 1;
     }
 
+    tokens.emplace_back(splitingString.data(),
+        startPos, splitingString.length());
     return tokens;
 }
 

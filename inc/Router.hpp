@@ -95,13 +95,18 @@ template <class EndpointData_T
 >
 class Router
 {
+	struct Node_T;
+
 	// think about void cause of deleting allocator<void> from c++17
 	static_assert(not std::is_same_v<EndpointData_T, void>, "void");
-	static_assert(not std::is_pointer_v<EndpointData_T>, "ptr");
+	// static_assert(not std::is_pointer_v<EndpointData_T>, "ptr");
 	static_assert(not std::is_reference_v<EndpointData_T>, "ref");
 
 	// should take care data is inited or not! or optional 
 	static_assert(metaUtils::rule_of_3<EndpointData_T>::value, "rule of 3");
+
+	using key_type = std::string;
+	using Router_T = pt::basic_ptree<key_type, Node_T>;
 
 	struct Node_T
 	{
@@ -111,17 +116,14 @@ class Router
 		// parent ptr is stored in this only for fast iterating
 		// only last nodes have parent ptr not null
 		// also for iterating
-		const Node_T* m_ptrParentNode;
+		const Router_T* m_ptrParent;
 	};
 
 	// using rebindA_T = std::allocator_traits<Alloc>::rebind_alloc<Node_T>;
 	// using rebindATrs_T = std::allocator_traits<Alloc>::rebind_traits<Node_T>;
 
-	using key_type = std::string;
 
 	using CharT = typename key_type::value_type;
-
-	using Router_T = pt::basic_ptree<key_type, Node_T>;
 
 	using path_type = typename Router_T::path_type;
 
@@ -136,7 +138,6 @@ public:
 	using const_reference = const value_type&;
 
 
-	// legacy forward iterator
 	struct LNRIterator
 	{
 	private:
@@ -149,23 +150,27 @@ public:
 
 	private:
 		// native iterator or pointer?
-		pointer m_node;
+		native_iter_T m_nativeIter;
 		
+
+		LNRIterator(reference);
+
 
 		LNRIterator(native_iter_T);
 
 
+		native_iter_T GetIterFromThis(Node_T* node) const;
 	public:
 		LNRIterator() = default;
 
 
-		void operator++();
+		LNRIterator& operator++();
 
 
 		LNRIterator operator++(int);
 
 
-		value_type& operator*();
+		reference operator*();
 
 
 		bool operator!=(LNRIterator other);
@@ -173,7 +178,6 @@ public:
 
 		bool operator==(LNRIterator other);
 	};
-
 
 	using iterator = struct LNRIterator;
 	using const_iterator = struct const_LNRIterator;
@@ -192,13 +196,20 @@ public:
 	Router(const T& host, const U& scheme, uint16_t port);
 
 
-	template <typename String1, typename String2 = std::string>
-	/*std::pair<iterator, bool>*/int InsertRoute(
-		const String1& url,
+	template <typename String2 = std::string>
+	std::pair<iterator, bool>
+	// int 
+	InsertRoute(
+		const std::string& url,
 		const EndpointData_T& value,
 		const String2& realm = "dev/null");
 
 
+	LNRIterator begin() const;
+
+
+
+	LNRIterator end() const;
 	// int AddRoute(const typename key_type& url, EndpointData_t* endpoint_data) noexcept(false); 
 
 
