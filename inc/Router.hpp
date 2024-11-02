@@ -11,6 +11,7 @@
 #include <type_traits>
 #include <new> // std::nothrow_t
 #include <string_view>
+#include <iterator>
 
 #include "boost/property_tree/ptree.hpp"
 #include "boost/property_tree/string_path.hpp"
@@ -102,32 +103,80 @@ class Router
 	// should take care data is inited or not! or optional 
 	static_assert(metaUtils::rule_of_3<EndpointData_T>::value, "rule of 3");
 
-	struct Data_T
+	struct Node_T
 	{
-		std::string m_realm; // realm
 		EndpointData_T m_endpointData; // context
+		const std::string m_realm; // realm 
+
+		// parent ptr is stored in this only for fast iterating
+		// only last nodes have parent ptr not null
+		// also for iterating
+		const Node_T* m_ptrParentNode;
 	};
 
-	// using rebindA_T = std::allocator_traits<Alloc>::rebind_alloc<Data_T>;
-	// using rebindATrs_T = std::allocator_traits<Alloc>::rebind_traits<Data_T>;
+	// using rebindA_T = std::allocator_traits<Alloc>::rebind_alloc<Node_T>;
+	// using rebindATrs_T = std::allocator_traits<Alloc>::rebind_traits<Node_T>;
 
 	using key_type = std::string;
 
 	using CharT = typename key_type::value_type;
 
-	using Router_T = pt::basic_ptree<key_type, Data_T>;
+	using Router_T = pt::basic_ptree<key_type, Node_T>;
 
 	using path_type = typename Router_T::path_type;
+
+	using native_iter_T = typename Router_T::iterator;
+	using native_const_iter_T = typename Router_T::const_iterator;
 public:
 	// Requirement of AllocatorAwareContainer
 	// using value_type = typename rebindA_T::value_type;
 
-	using value_type = Data_T;
+	using value_type = Node_T;
 	using reference = value_type&;
 	using const_reference = const value_type&;
 
-	// using iterator = /**/;
-	// using const_iterator = /* */;
+
+	// legacy forward iterator
+	struct LNRIterator
+	{
+	private:
+		using value_type = typename native_iter_T::value_type; // removed in c++20
+	public:
+		using difference_type = typename native_iter_T::difference_type;
+		using reference = typename native_iter_T::reference_type;
+		using pointer = value_type*;
+		using iterator_category = std::forward_iterator_tag;
+
+	private:
+		// native iterator or pointer?
+		pointer m_node;
+		
+
+		LNRIterator(native_iter_T);
+
+
+	public:
+		LNRIterator() = default;
+
+
+		void operator++();
+
+
+		LNRIterator operator++(int);
+
+
+		value_type& operator*();
+
+
+		bool operator!=(LNRIterator other);
+
+
+		bool operator==(LNRIterator other);
+	};
+
+
+	using iterator = struct LNRIterator;
+	using const_iterator = struct const_LNRIterator;
 
 	// using difference_type = typename iterator::deference_type;
 
@@ -136,7 +185,7 @@ public:
 	// iterator is bidirectional!
 	// nlr, lnr, lrn (прямой, центрированный, обратный); url: 
 	// https://ru.wikipedia.org/wiki/%D0%9E%D0%B1%D1%85%D0%BE%D0%B4_%D0%B4%D0%B5%D1%80%D0%B5%D0%B2%D0%B0
-	
+
 	
 	// for all that is convertible to std::string
 	template <typename T, typename U>
@@ -144,7 +193,7 @@ public:
 
 
 	template <typename String1, typename String2 = std::string>
-	int InsertRoute(
+	/*std::pair<iterator, bool>*/int InsertRoute(
 		const String1& url,
 		const EndpointData_T& value,
 		const String2& realm = "dev/null");
@@ -185,6 +234,7 @@ public:
 	// const EndpointData_t* FindRoute(
 	// 	const typename key_type& url) const noexcept(false);
 
+	friend void TestTraverse();
 private:
 	Router_T m_router;
 	std::string m_host; // standart allocator

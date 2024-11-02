@@ -50,7 +50,8 @@ std::vector<std::string>
 }
 
 
-void UrlUtils::CheckUrlCorrectness(
+
+bool UrlUtils::CheckUrlCorrectness(
 	std::string_view urlRawPath)
 {
 	std::cmatch ignoring;
@@ -59,10 +60,19 @@ void UrlUtils::CheckUrlCorrectness(
 };
 
 
+
 bool UrlUtils::CheckUrlCorrectness(
 	const std::string& urlRawPath)
 {
-	return UrlUtils::CheckUrlCorrectness(urlRawPath.c_str());
+	return UrlUtils::CheckUrlCorrectness(
+		std::string_view{urlRawPath.c_str()});
+};
+
+
+bool UrlUtils::CheckUrlCorrectness(
+	const char* urlRawPath)
+{
+	return CheckUrlCorrectness(std::string_view{urlRawPath});
 };
 
 

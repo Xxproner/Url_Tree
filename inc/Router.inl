@@ -21,6 +21,11 @@ public:
 	static bool 
 		CheckUrlCorrectness(const std::string& url);
 
+	
+	static bool 
+		CheckUrlCorrectness(const char* url);
+
+
 	static void 
 		EraseQueryParams(std::string& url) noexcept;
 
@@ -102,7 +107,7 @@ static std::string TrimString(
 	using str_T = std::string;
 	
 	str_T::const_iterator head = str.cbegin()
-						, tail = std::prev(str.cend());
+						, tail = str.cend();
 	while(head != tail)
 	{
 		if (*head != trimmer)
@@ -110,21 +115,37 @@ static std::string TrimString(
 		++head;
 	}
 
-	while (tail != head)
+	while (--tail != head)
 	{
 		if (*tail != trimmer)
 			break;
-		--tail;
 	}
-
-    str_T::difference_type shift = head == tail ? 0 : 1;
-    return str.substr(std::distance(str.cbegin(), head), std::distance(head, tail) + shift);
+	
+	return str.substr(std::distance(str.cbegin(), head), std::distance(head, tail) + 1);
 };
+
+
+
+template <class EndpointData_T>
+Router<EndpointData_T>::LNRIterator::operator++()
+{
+	if (m_node->m_ptrParentNode)
+	{
+		// we reached end of deep
+		// go to parent
+		m_node = m_node->m_ptrParentNode;
+	} else 
+	{
+		//
+	}
+}
+
 
 
 template <typename EndpointData_T> 
 template <typename String1, typename String2>
-std::pair<Router<EndpointData_T>::iterator, bool>
+// std::pair<Router<EndpointData_T>::iterator, bool>
+int
 Router<EndpointData_T>::InsertRoute(
 	const String1& url
 	, const EndpointData_T& value
@@ -133,14 +154,14 @@ Router<EndpointData_T>::InsertRoute(
 	if (UrlUtils::CheckUrlCorrectness(url))
 	{
 		auto trimmedUrlPath =
-			trimString(url.data(), '/');
+			TrimString(url, '/');
 
 		// construct and move
-		m_router.put(path_of{trimmedUrlPath, '/'},
-			Data_T{realm, value});
+		// m_router.put(path_type{trimmedUrlPath, '/'},
+		// 	Node_T{nullptr, realm, value});
 	} else
 	{
-
+		throw "Invalid path";
 	}
 
 	return 0;
