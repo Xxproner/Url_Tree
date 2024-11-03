@@ -96,12 +96,126 @@ template <typename EndpointData_T>
 template <typename T, typename U>
 Router<EndpointData_T>::Router(
 	const T& host, const U& scheme, uint16_t port)
-	: m_host(host)
+	: m_router(Node_T(EndpointData_T{}, def_realm, nullptr))
+	, m_host(host)
 	, m_scheme(scheme)
 	, m_port(static_cast<uint16_t>(80))
 {
+	// if container empty for begin(), end()
+	// m_router.put(path_type{"#", '/'}, Node_T(EndpointData_T{}, def_realm, &m_router));
+};
+
+
+template <typename EndpointData_T>
+Router<EndpointData_T>::Node_T::Node_T()
+	: m_endpointData(EndpointData_T{})
+	, m_realm(def_realm)
+	, m_ptrParent(nullptr)
+{
+	// nothing
+
+	// why this contructed?
+}
+
+
+
+template <typename EndpointData_T>
+Router<EndpointData_T>::Node_T::Node_T(
+	EndpointData_T data, const char* realm, Router_T* const ptrParent)
+	: m_endpointData(data)
+	, m_realm(realm)
+	, m_ptrParent(ptrParent)
+{
+	// nothing
+}
+
+
+template <typename EndpointData_T>
+Router<EndpointData_T>::Node_T::Node_T(
+	const Node_T& otherNode)
+	: m_endpointData(otherNode.m_endpointData)
+	, m_realm(otherNode.m_realm)
+	, m_ptrParent(otherNode.m_ptrParent)
+{
 	// nothing
 };
+
+
+template <typename EndpointData_T>
+Router<EndpointData_T>::Node_T::Node_T(
+	Node_T&& otherNode)
+	: m_endpointData(std::move(otherNode.m_endpointData))
+	, m_realm(otherNode.m_realm)
+	, m_ptrParent(otherNode.m_ptrParent)
+{
+	// nothing
+	// m_realm = nullptr;
+	// m_ptrParent = nullptr
+};
+
+
+
+template <typename EndpointData_T>
+typename Router<EndpointData_T>::Node_T&
+Router<EndpointData_T>::Node_T::operator=(
+	const Node_T& otherNode)
+{
+	if (this != &otherNode)
+	{
+		m_endpointData = m_endpointData;
+		m_realm = otherNode.m_realm;
+		m_ptrParent = otherNode.m_ptrParent;
+	}
+
+	return *this;
+};
+
+
+
+
+template <typename EndpointData_T>
+typename Router<EndpointData_T>::Node_T&
+Router<EndpointData_T>::Node_T::operator=(
+	Node_T&& otherNode)
+{
+	m_endpointData = std::move(m_endpointData);
+	m_realm = otherNode.m_realm;
+	m_ptrParent = otherNode.m_ptrParent;
+
+	return *this;
+};
+
+
+template <typename EndpointData_T>
+typename Router<EndpointData_T>::Router_T*
+Router<EndpointData_T>::Node_T::Parent() const
+{
+	return m_ptrParent;
+};
+
+
+template <typename EndpointData_T>
+typename Router<EndpointData_T>::Router_T*
+Router<EndpointData_T>::Node_T::Grandparent() const
+{
+	// data() return not valid ref
+	return m_ptrParent->data().m_ptrParent;
+};
+
+
+
+// template <typename EndpointData_T>
+// Router<EndpointData_T>::Node_T::Node_T(
+// 	EndpointData_T data
+// 	, std::string realm
+// 	, typename Router<EndpointData_T>::Router_T* const ptrParent)
+	
+// 	: m_endpointData(std::move(data))
+// 	, m_realm(std::move(realm))
+// 	, m_ptrParent(ptrParent)
+// {
+// 	// nothing
+// };
 
 
 static std::string TrimString(
@@ -140,21 +254,32 @@ Router<EndpointData_T>::LNRIterator::LNRIterator(
 
 template <class EndpointData_T>
 typename Router<EndpointData_T>::native_iter_T
-Router<EndpointData_T>::LNRIterator::GetIterFromThis(Node_T* node) const
+Router<EndpointData_T>::LNRIterator::GetIterFromThis(
+	Router<EndpointData_T>::Router_T* node) const
 {
-	auto parentDeepNativeIter = node->m_ptrParent->begin();
-	while (&*parentDeepNativeIter != node)
+	auto parentDeepNativeIter = node->data().m_ptrParent->begin();
+	while (std::addressof(parentDeepNativeIter->second) != node)
 	{
-		parentDeepNativeIter++;
+		++parentDeepNativeIter;
 	}
 
 	return parentDeepNativeIter;
 };
 
 
+// template <class EndpointData_T>
+// Router<EndpointData_T>::LNRIterator::LNRIterator(
+// 	Router<EndpointData_T>::LNRIterator::reference node)
+// 	: m_nativeIter(GetIterFromThis(std::addressof(node)))
+// {
+// 	// nothing
+// };
+
+
+
 template <class EndpointData_T>
 Router<EndpointData_T>::LNRIterator::LNRIterator(
-	Router<EndpointData_T>::LNRIterator::reference node)
+	Router<EndpointData_T>::Router_T& node)
 	: m_nativeIter(GetIterFromThis(std::addressof(node)))
 {
 	// nothing
@@ -163,31 +288,43 @@ Router<EndpointData_T>::LNRIterator::LNRIterator(
 
 
 template <class EndpointData_T>
+Router<EndpointData_T>::LNRIterator::LNRIterator(
+	Router<EndpointData_T>::Router_T* node)
+	: m_nativeIter(GetIterFromThis(node))
+{
+	// nothing
+};
+
+
+template <class EndpointData_T>
 typename Router<EndpointData_T>::LNRIterator&
 Router<EndpointData_T>::LNRIterator::operator++()
 {
-	if (m_nativeIter != m_nativeIter->m_ptrParentNode.end())
+	const auto nativeDeepEndIter = operator*().Parent()->end();
+	if (m_nativeIter != nativeDeepEndIter)
 	{
 		m_nativeIter++;
-	} else
-	{
-		// we reached end of deep
-		// go to parent
-		auto parent = m_nativeIter->m_ptrParentNode;
-		if (parent->m_ptrParentNode)
+		if (m_nativeIter == nativeDeepEndIter) // go deep up
 		{
-			auto parentDeepNativeIter = parent->m_ptrParent->begin();
-			while (parentDeepNativeIter != parent->m_ptrParent->end())
-			{
-				parentDeepNativeIter++;
-			}
+			// parent always exists on any level
+			// m_router does not have parent!
 
-			m_nativeIter = parentDeepNativeIter;
-		} else
-		{
-			// ub
+			/**
+			 * gcc error: there are no arguments to ‘Grandparent’ that depend on a template parameter, 
+			 * so a declaration of ‘Grandparent’ must be available*/
+			if (Data().Grandparent())
+			{
+				// deep up _|
+				m_nativeIter = GetIterFromThis(Data().Parent());
+			} else
+			{
+				// end of iterating
+				// next increment follows ub!
+			}
 		}
 	}
+
+	return *this;
 };
 
 
@@ -196,68 +333,121 @@ template <class EndpointData_T>
 typename Router<EndpointData_T>::LNRIterator
 Router<EndpointData_T>::LNRIterator::operator++(int)
 {
-	auto retNativeIter = m_nativeIter;
-	if (m_nativeIter != m_nativeIter->m_ptrParentNode.end())
+	const auto retNativeIter = m_nativeIter;
+	
+	const auto nativeDeepEndIter = operator*().Parent()->end();
+	if (m_nativeIter != nativeDeepEndIter)
 	{
 		m_nativeIter++;
-	} else
-	{
-		// we reached end of deep
-		// go to parent
-		auto parent = m_nativeIter->m_ptrParentNode;
-		if (parent->m_ptrParentNode)
+		if (m_nativeIter == nativeDeepEndIter) // go deep up
 		{
-			auto parentDeepNativeIter = parent->m_ptrParent->begin();
-			while (parentDeepNativeIter != parent->m_ptrParent->end())
-			{
-				parentDeepNativeIter++;
-			}
+			// parent always exists on this level
+			// m_router does not have parent
 
-			m_nativeIter = parentDeepNativeIter;
-		} else
-		{
-			// ub
+			/**
+			 * gcc error: there are no arguments to ‘Grandparent’ that depend on a template parameter, 
+			 * so a declaration of ‘Grandparent’ must be available */
+			if (Data().Grandparent())
+			{
+				// deep up
+				m_nativeIter = GetIterFromThis(Data().Parent());
+			} else
+			{
+				// m_nativeIter == 
+				// 		m_router.end()
+				// 	ub
+			}
 		}
 	}
-
-
+	
 	return LNRIterator{retNativeIter};
+};
+
+
+
+template <class EndpointData_T>
+typename Router<EndpointData_T>::LNRIterator::reference
+Router<EndpointData_T>::LNRIterator::Data() const
+{
+	return m_nativeIter->second.data();
 };
 
 
 template <class EndpointData_T>
 typename Router<EndpointData_T>::LNRIterator::reference
-Router<EndpointData_T>::LNRIterator::operator*()
+Router<EndpointData_T>::LNRIterator::operator*() const
 {
-	return *m_nativeIter;
+	return this->Data();
+};
+
+
+
+template <class EndpointData_T>
+typename Router<EndpointData_T>::LNRIterator::pointer
+Router<EndpointData_T>::LNRIterator::operator->() const
+{
+	return std::addressof(Data());
+};
+
+
+template <class EndpointData_T>
+bool
+Router<EndpointData_T>::LNRIterator::operator==(LNRIterator otherIter) const
+{
+	return m_nativeIter == otherIter.m_nativeIter;
+};
+
+
+template <class EndpointData_T>
+bool
+Router<EndpointData_T>::LNRIterator::operator!=(LNRIterator otherIter) const
+{
+	return not this->operator==(otherIter);
+};
+
+
+
+template <class EndpointData_T>
+typename Router<EndpointData_T>::LNRIterator
+Router<EndpointData_T>::begin()
+{
+	return LNRIterator(m_router.begin());
 };
 
 
 template <class EndpointData_T>
 typename Router<EndpointData_T>::LNRIterator
-Router<EndpointData_T>::begin() const
+Router<EndpointData_T>::end()
 {
-	return m_router.begin();
-};
-
-
-template <class EndpointData_T>
-typename Router<EndpointData_T>::LNRIterator
-Router<EndpointData_T>::end() const
-{
-	return m_router.end();
+	return LNRIterator(m_router.end());
 };
 
 
 
-template <typename EndpointData_T> 
-template <typename String2>
+// template <class EndpointData_T>
+// typename Router<EndpointData_T>::LNRIterator
+// Router<EndpointData_T>::cbegin()
+// {
+// 	return LNRIterator(m_router.begin());
+// };
+
+
+// template <class EndpointData_T>
+// typename Router<EndpointData_T>::LNRIterator
+// Router<EndpointData_T>::cend()
+// {
+// 	return LNRIterator(m_router.end());
+// };
+
+
+
+template <typename EndpointData_T>
 std::pair<typename Router<EndpointData_T>::iterator, bool>
 // int
 Router<EndpointData_T>::InsertRoute(
 	const std::string& url
 	, const EndpointData_T& value
-	, const String2& realm)
+	, const char* realm)
 {
 	if (UrlUtils::CheckUrlCorrectness(url))
 	{
@@ -267,40 +457,44 @@ Router<EndpointData_T>::InsertRoute(
 		size_t numCurrentPath = 0;
 		const size_t numPaths = urlPaths.size();
 
-		boost::optional child = m_router.get_child_optional(
+		Router_T* parent = &m_router;
+		boost::optional child = parent->get_child_optional(
 				path_type{urlPaths[0]});
+		
 		// get child until possible
 		while (numCurrentPath < numPaths &&
 				child)
 		{
+			parent = std::addressof(child.get());
+			
 			++numCurrentPath;
-			child = child.get_child_optional(
+			child = parent->get_child_optional(
 				path_type{urlPaths[numCurrentPath]});
 		}
 		
 		if (child) // numCurrentPath == numPaths
 		{
-			return {LNRIterator{*child}, false};
-		} else 
+			return std::make_pair<LNRIterator, bool>(LNRIterator(child.get()), false);
+		} else // chlid invalid -- death!
 		{
-			// add last children
 			while (numCurrentPath < (numPaths - 1))
 			{
-				child = child.put(path_type{urlPaths[numCurrentPath]},
-					Node_T{&child});
+				child = parent->put(path_type{urlPaths[numCurrentPath]},
+					Node_T(EndpointData_T{}, realm, parent));
 				++numCurrentPath;
 			}
 
-			child.put(path_type{urlPaths[numCurrentPath]},
-				Node_T{value, realm, &child});
+			parent = std::addressof(child.get());
 
-			return {LNRIterator{child.begin()}, true};
+			parent->put(path_type{urlPaths[numCurrentPath]},
+				Node_T(value, realm, parent));
+
+			return std::make_pair<LNRIterator, bool>(LNRIterator(child->begin()), true);
 		}
 	} else
 	{
 		throw "Invalid path";
 	}
-
 	// not reached
 };
 

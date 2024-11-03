@@ -108,15 +108,47 @@ class Router
 	using key_type = std::string;
 	using Router_T = pt::basic_ptree<key_type, Node_T>;
 
+	constexpr static const char* def_realm = nullptr;
 	struct Node_T
 	{
 		EndpointData_T m_endpointData; // context
-		const std::string m_realm; // realm 
+
+		// be carefull of lifetime of m_realm
+		const char* m_realm; // realm 
+		Router_T* /*const*/ m_ptrParent;
+
+		
+		Node_T();
+
+
+		Node_T(EndpointData_T, const char*, Router_T*);
+
+
+		// why should I implement this
+		// m_endpointData has copy_ctor
+		Node_T(const Node_T& otherNode);
+
+
+		Node_T& operator=(const Node_T& otherNode);
+
+
+		Node_T(Node_T&& otherNode);
+
+
+		Node_T& operator=(Node_T&& otherNode);
+
+
+		Router_T* Grandparent() const;
+
+
+		Router_T* Parent() const;
+
+
+		// ~Node_T() = default;
 
 		// parent ptr is stored in this only for fast iterating
 		// only last nodes have parent ptr not null
 		// also for iterating
-		const Router_T* m_ptrParent;
 	};
 
 	// using rebindA_T = std::allocator_traits<Alloc>::rebind_alloc<Node_T>;
@@ -138,29 +170,45 @@ public:
 	using const_reference = const value_type&;
 
 
+	/**
+	 * LNRIterator covers pt::iterator
+	 * but its value_type is Node_T!
+	 * */
 	struct LNRIterator
 	{
 	private:
-		using value_type = typename native_iter_T::value_type; // removed in c++20
+		using room_type = Router<EndpointData_T>;
+		using value_type = typename room_type::value_type; // removed in c++20
 	public:
 		using difference_type = typename native_iter_T::difference_type;
-		using reference = typename native_iter_T::reference_type;
+		// using reference = typename native_iter_T::reference_type;
+		using reference = value_type&;
 		using pointer = value_type*;
 		using iterator_category = std::forward_iterator_tag;
 
 	private:
 		// native iterator or pointer?
+		// std::pair<key_type, property_tree>
 		native_iter_T m_nativeIter;
 		
-
-		LNRIterator(reference);
+		// LNRIterator(reference);
 
 
 		LNRIterator(native_iter_T);
 
 
-		native_iter_T GetIterFromThis(Node_T* node) const;
+		LNRIterator(typename room_type::Router_T*);
+
+
+		LNRIterator(typename room_type::Router_T&);
+
+
+		native_iter_T GetIterFromThis(typename room_type::Router_T* node) const;
+
+
+		value_type& Data() const;
 	public:
+
 		LNRIterator() = default;
 
 
@@ -170,13 +218,19 @@ public:
 		LNRIterator operator++(int);
 
 
-		reference operator*();
+		reference operator*() const;
 
 
-		bool operator!=(LNRIterator other);
+		pointer operator->() const;
 
 
-		bool operator==(LNRIterator other);
+		bool operator!=(LNRIterator other) const;
+
+
+		bool operator==(LNRIterator other) const;
+
+
+		friend Router<EndpointData_T>;
 	};
 
 	using iterator = struct LNRIterator;
@@ -196,20 +250,19 @@ public:
 	Router(const T& host, const U& scheme, uint16_t port);
 
 
-	template <typename String2 = std::string>
 	std::pair<iterator, bool>
 	// int 
 	InsertRoute(
 		const std::string& url,
 		const EndpointData_T& value,
-		const String2& realm = "dev/null");
+		const char* realm = def_realm);
 
 
-	LNRIterator begin() const;
+	LNRIterator begin();
 
 
 
-	LNRIterator end() const;
+	LNRIterator end();
 	// int AddRoute(const typename key_type& url, EndpointData_t* endpoint_data) noexcept(false); 
 
 

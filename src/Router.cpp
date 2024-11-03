@@ -1,7 +1,7 @@
 #include "Router.hpp"
 
 
-const std::regex UrlUtils::urlPathRegex("/?([^/#?]+/)*");
+const std::regex UrlUtils::urlPathRegex("([^/#?]+/)*");
 
 std::vector<std::string>
 	UrlUtils::Split(std::string_view spliting_string)
@@ -79,6 +79,7 @@ bool UrlUtils::CheckUrlCorrectness(
 	return UrlUtils::CheckUrlCorrectness(
 		std::string_view{urlRawPath.c_str()});
 };
+
 
 
 bool UrlUtils::CheckUrlCorrectness(
