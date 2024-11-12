@@ -1,7 +1,8 @@
 #include "Router.hpp"
 
 
-const std::regex UrlUtils::urlPathRegex("([^/#?]+/)*");
+// e.g this/is/example/ or this/ but not just `/'
+const std::regex UrlUtils::urlPathRegex("([^/#?]+/)+");
 
 std::vector<std::string>
 	UrlUtils::Split(std::string_view spliting_string)

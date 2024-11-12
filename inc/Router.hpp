@@ -95,8 +95,11 @@ template <class EndpointData_T
 >
 class Router
 {
+public:
+	struct LNRIterator;
+private:
 	struct Node_T;
-
+	
 	// think about void cause of deleting allocator<void> from c++17
 	static_assert(not std::is_same_v<EndpointData_T, void>, "void");
 	// static_assert(not std::is_pointer_v<EndpointData_T>, "ptr");
@@ -109,15 +112,17 @@ class Router
 	using Router_T = pt::basic_ptree<key_type, Node_T>;
 
 	constexpr static const char* def_realm = nullptr;
+
+
+
 	struct Node_T
 	{
 		EndpointData_T m_endpointData; // context
 
 		// be carefull of lifetime of m_realm
 		const char* m_realm; // realm 
-		Router_T* /*const*/ m_ptrParent;
 
-		
+
 		Node_T();
 
 
@@ -132,20 +137,31 @@ class Router
 		Node_T& operator=(const Node_T& otherNode);
 
 
-		Node_T(Node_T&& otherNode);
+		// Node_T(Node_T&& otherNode);
 
 
-		Node_T& operator=(Node_T&& otherNode);
+		// Node_T& operator=(Node_T&& otherNode);
+
+
+		const char* realm() const noexcept { return m_realm; };
+
+
+		EndpointData_T& data() noexcept { return m_endpointData; };
+
+
+		const EndpointData_T& data() const noexcept { return m_endpointData; };
+	private:
+		Router_T* /*const*/ m_ptrParent;
 
 
 		Router_T* Grandparent() const;
 
 
 		Router_T* Parent() const;
-
-
+	
 		// ~Node_T() = default;
 
+		friend struct LNRIterator;
 		// parent ptr is stored in this only for fast iterating
 		// only last nodes have parent ptr not null
 		// also for iterating
@@ -206,16 +222,16 @@ public:
 		native_iter_T GetIterFromThis(typename room_type::Router_T* node) const;
 
 
-		value_type& Data() const;
+		reference Data() const;
 	public:
 
 		LNRIterator() = default;
 
 
-		LNRIterator& operator++();
+		// LNRIterator& operator++();
 
 
-		LNRIterator operator++(int);
+		// LNRIterator operator++(int);
 
 
 		reference operator*() const;
@@ -247,7 +263,7 @@ public:
 	
 	// for all that is convertible to std::string
 	template <typename T, typename U>
-	Router(const T& host, const U& scheme, uint16_t port);
+	Router(const T& host, const U& scheme, uint16_t port = 80);
 
 
 	std::pair<iterator, bool>
@@ -258,11 +274,34 @@ public:
 		const char* realm = def_realm);
 
 
+	// implement noexcept overloading once
+	LNRIterator FindRoute(const std::string& url) /*noexcept*/;
+
+
+	// implement noexcept overloading once
+	LNRIterator FindRouteOrNearestParent(const std::string& value) /*noexcept*/;
+
+	// template <typename... Args>
+	// std::pair<iterator, bool>
+	// EmplaceRoute(
+	// 	const std::string& url,
+	// 	const char* realm = def_realm,
+	// 	Args&&... args);
+
+
+	// std::pair<iterator, bool>
+	// TryEmplaceRoute();
+
+
 	LNRIterator begin();
 
 
 
 	LNRIterator end();
+
+
+
+	void clear() noexcept;
 	// int AddRoute(const typename key_type& url, EndpointData_t* endpoint_data) noexcept(false); 
 
 
@@ -300,10 +339,11 @@ public:
 
 	friend void TestTraverse();
 private:
-	Router_T m_router;
 	std::string m_host; // standart allocator
 	std::string m_scheme; 
 	uint16_t m_port;
+public:
+	Router_T m_router;
 };
 
 #include "Router.inl"
