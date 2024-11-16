@@ -28,6 +28,16 @@ namespace metaUtils
 			std::is_copy_constructible_v<T> &&
 			std::is_move_constructible_v<T>;
 	};
+
+	template <typename T>
+	struct add_cref
+	{
+		typedef std::add_const_t<
+			std::add_lvalue_reference_t<T>> type;
+	};
+
+	template <typename T>
+	using add_cref_t = typename add_cref<T>::type;
 }; // metaUtils
 
 
@@ -95,6 +105,7 @@ template <class EndpointData_T
 >
 class Router
 {
+	// EndpointData_T is comparable with bool to indicate whether initide or not
 public:
 	struct LNRIterator;
 private:
@@ -108,12 +119,13 @@ private:
 	// should take care data is inited or not! or optional 
 	static_assert(metaUtils::rule_of_3<EndpointData_T>::value, "rule of 3");
 
+	// static_assert(std::is_same_v<decltype(std::declval<EndpointData_T>() != false), bool>, 
+	// 	"false initicates default initialization!");
+
 	using key_type = std::string;
 	using Router_T = pt::basic_ptree<key_type, Node_T>;
 
 	constexpr static const char* def_realm = nullptr;
-
-
 
 	struct Node_T
 	{
@@ -175,14 +187,14 @@ private:
 
 	using path_type = typename Router_T::path_type;
 
-	using native_iter_T = typename Router_T::iterator;
-	using native_const_iter_T = typename Router_T::const_iterator;
+	using NativeIter_T = typename Router_T::iterator;
+	using ConstNativeIter_T = typename Router_T::const_iterator;
 public:
 	// Requirement of AllocatorAwareContainer
 	// using value_type = typename rebindA_T::value_type;
 
 	using value_type = Node_T;
-	using reference = value_type&;
+	using reference = std::add_lvalue_reference_t<value_type>;
 	using const_reference = const value_type&;
 
 
@@ -194,23 +206,26 @@ public:
 	{
 	private:
 		using room_type = Router<EndpointData_T>;
-		using value_type = typename room_type::value_type; // removed in c++20
+#if !__cplusplus > 202002L
+		using value_type = std::add_const_t<
+			typename room_type::value_type>; // removed in c++20
+#endif // !__cplusplus > 202002L
 	public:
-		using difference_type = typename native_iter_T::difference_type;
-		// using reference = typename native_iter_T::reference_type;
-		using reference = value_type&;
-		using pointer = value_type*;
-		using iterator_category = std::forward_iterator_tag;
+		using difference_type = typename NativeIter_T::difference_type;
+		// using reference = typename NativeIter_T::reference_type;
+		using reference = std::add_lvalue_reference_t<value_type>;
+		using pointer = std::add_pointer_t<value_type>;
+		using iterator_category = std::output_iterator_tag;
 
 	private:
 		// native iterator or pointer?
 		// std::pair<key_type, property_tree>
-		native_iter_T m_nativeIter;
+		NativeIter_T m_nativeIter;
 		
 		// LNRIterator(reference);
 
 
-		LNRIterator(native_iter_T);
+		LNRIterator(NativeIter_T);
 
 
 		LNRIterator(typename room_type::Router_T*);
@@ -219,7 +234,7 @@ public:
 		LNRIterator(typename room_type::Router_T&);
 
 
-		native_iter_T GetIterFromThis(typename room_type::Router_T* node) const;
+		NativeIter_T GetIterFromThis(typename room_type::Router_T* node) const;
 
 
 		reference Data() const;
@@ -228,10 +243,11 @@ public:
 		LNRIterator() = default;
 
 
-		// LNRIterator& operator++();
+		// LegacyIterator is incrementable (the behavior of the expression ++It is defined) 
+		LNRIterator& operator++();
 
 
-		// LNRIterator operator++(int);
+		LNRIterator operator++(int);
 
 
 		reference operator*() const;
@@ -249,17 +265,75 @@ public:
 		friend Router<EndpointData_T>;
 	};
 
+
+	struct const_LNRIterator
+	{
+	private:
+		using room_type = Router<EndpointData_T>;
+#if !__cplusplus > 202002L
+		using value_type = std::add_const_t<
+			typename room_type::value_type>; // removed in c++20
+#endif // !__cplusplus > 202002L
+	public:
+		using difference_type = typename ConstNativeIter_T::difference_type;
+		// using reference = typename NativeIter_T::reference_type;
+		using reference = std::add_lvalue_reference_t<value_type>;
+		using pointer = std::add_pointer_t<value_type>;
+		using iterator_category = std::output_iterator_tag;
+
+	private:
+		// native iterator or pointer?
+		// std::pair<key_type, property_tree>
+		ConstNativeIter_T m_constNativeIter;
+		
+		// LNRIterator(reference);
+
+		const_LNRIterator(ConstNativeIter_T);
+
+
+		const_LNRIterator(const typename room_type::Router_T*);
+
+
+		const_LNRIterator(const typename room_type::Router_T&);
+
+
+		ConstNativeIter_T GetIterFromThis(const typename room_type::Router_T* node) const;
+
+
+		reference Data() const;
+	public:
+
+		const_LNRIterator() = default;
+
+
+		const_LNRIterator& operator++();
+
+
+		const_LNRIterator operator++(int);
+
+
+		reference operator*() const;
+
+
+		pointer operator->() const;
+
+
+		bool operator!=(const_LNRIterator other) const;
+
+
+		bool operator==(const_LNRIterator other) const;
+
+
+		friend Router<EndpointData_T>;
+	};
+
 	using iterator = struct LNRIterator;
 	using const_iterator = struct const_LNRIterator;
 
-	// using difference_type = typename iterator::deference_type;
-
-	// using allocator_type = rebindA_T;
-
-	// iterator is bidirectional!
+	
+	// iterator is output!
 	// nlr, lnr, lrn (прямой, центрированный, обратный); url: 
 	// https://ru.wikipedia.org/wiki/%D0%9E%D0%B1%D1%85%D0%BE%D0%B4_%D0%B4%D0%B5%D1%80%D0%B5%D0%B2%D0%B0
-
 	
 	// for all that is convertible to std::string
 	template <typename T, typename U>
@@ -267,19 +341,31 @@ public:
 
 
 	std::pair<iterator, bool>
-	// int 
+	// int
 	InsertRoute(
 		const std::string& url,
 		const EndpointData_T& value,
 		const char* realm = def_realm);
 
 
-	// implement noexcept overloading once
-	LNRIterator FindRoute(const std::string& url) /*noexcept*/;
+	std::pair<iterator, bool> InsertRoute_hint(
+			const std::string& url,
+			const EndpointData_T& value,
+			const char* realm /*= def_realm*/,
+			const_iterator hint);
 
 
-	// implement noexcept overloading once
-	LNRIterator FindRouteOrNearestParent(const std::string& value) /*noexcept*/;
+	iterator FindRoute(const std::string& urlPath) /*noexcept*/;
+
+
+	iterator FindRoute(const std::string& urlPath, std::nothrow_t) noexcept;
+
+
+	iterator FindRouteOrNearestParent(const std::string& urlPath) /*noexcept*/;
+
+
+	iterator FindRouteOrNearestParent(const std::string& urlPath, std::nothrow_t) noexcept;
+
 
 	// template <typename... Args>
 	// std::pair<iterator, bool>
@@ -289,55 +375,19 @@ public:
 	// 	Args&&... args);
 
 
-	// std::pair<iterator, bool>
-	// TryEmplaceRoute();
+	void clear() noexcept; 
 
-
-	LNRIterator begin();
-
-
+	// friend void TestTraverse();
 
 	LNRIterator end();
 
 
-
-	void clear() noexcept;
-	// int AddRoute(const typename key_type& url, EndpointData_t* endpoint_data) noexcept(false); 
-
-
-	// template <typename... Args>
-	// int AddRoute(std::nothrow_t nthw,
-	// 	const typename key_type& url, Args&&... args) noexcept;
+	const_LNRIterator cend();
+private:
+	LNRIterator begin();
 
 
-	// template <typename... Args>
-	// int AddRoute(const typename key_type& url, Args&&... args) noexcept(false);
-
-
-	// std::pair<std::string, EndpointData_T*>
-	// FindNearestRoute(const typename key_type& url) noexcept(false);
-
-
-	// std::pair<std::string, const EndpointData_t*>
-	// FindNearestRoute(const typename key_type& url) const noexcept(false);
-
-
-	// EndpointData_t* FindRoute(std::nothrow_t nthw,
-	// 	const typename key_type& url) noexcept;
-
-
-	// EndpointData_t* FindRoute(
-	// 	const typename key_type& url) noexcept(false);
-
-
-	// const EndpointData_t* FindRoute(std::nothrow_t nthw,
-	// 	const typename key_type& url) const noexcept;
-
-
-	// const EndpointData_t* FindRoute(
-	// 	const typename key_type& url) const noexcept(false);
-
-	friend void TestTraverse();
+	const_LNRIterator cbegin();
 private:
 	std::string m_host; // standart allocator
 	std::string m_scheme; 

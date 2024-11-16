@@ -2,7 +2,7 @@
 
 
 // e.g this/is/example/ or this/ but not just `/'
-const std::regex UrlUtils::urlPathRegex("([^/#?]+/)+");
+const std::regex UrlUtils::urlPathRegex("[^/#?]+(/[^/#?]+)*");
 
 std::vector<std::string>
 	UrlUtils::Split(std::string_view spliting_string)
@@ -57,8 +57,13 @@ std::vector<std::string>
     	startPos = endPos + 1;
     }
 
-    tokens.emplace_back(splitingString.data(),
-        startPos, splitingString.length());
+    // if (std::size_t splitingStringLen = splitingString.length(); 
+    		// splitingString - startPos > 1)
+    // {
+    	tokens.emplace_back(splitingString.data(),
+        	startPos, splitingString.length());
+    // }
+
     return tokens;
 }
 
