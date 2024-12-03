@@ -16,6 +16,30 @@
 #include "boost/property_tree/ptree.hpp"
 #include "boost/property_tree/string_path.hpp"
 
+
+#if !defined(__GNUC__)
+#error "Only for gcc compiler("
+#endif // !defined(__GNUC__)
+
+#if __cpp_exceptions
+#	define URL_TREE_throw(x) throw x
+#else
+#	define URL_TREE_throw(x) std::terminate()
+#endif // !__cpp_exceptions
+
+
+#if defined(__URL_TREE_NO_CORRECTNESS__) &&\
+		__URL_TREE_NO_CORRECTNESS__ == 1
+#	define UTREE_ASSERT(x, exception) if(true) {}
+#else
+#	define UTREE_ASSERT(x, exception)\
+		if (!(x))\
+		{\
+			URL_TREE_throw(exception);\
+		}
+#endif // defined(__URL_TREE_CORRECTNESS__) &&
+	   // __URL_TREE_CORRECTNESS__ == 1
+
 namespace pt = boost::property_tree;
 
 namespace metaUtils
@@ -23,11 +47,12 @@ namespace metaUtils
 	template <typename T>
 	struct rule_of_3
 	{
-		constexpr static size_t value = 
+		constexpr static std::size_t value = 
 			std::is_default_constructible_v<T> &&
 			std::is_copy_constructible_v<T> &&
 			std::is_move_constructible_v<T>;
 	};
+
 
 	template <typename T>
 	struct add_cref
@@ -36,68 +61,49 @@ namespace metaUtils
 			std::add_lvalue_reference_t<T>> type;
 	};
 
+
 	template <typename T>
 	using add_cref_t = typename add_cref<T>::type;
-}; // metaUtils
 
 
-// struct Url_T // for property_tree overloading
-// {
-// 	template <typename String>
-// 	Url(const String& url);
-// };
+	template <typename T, T N>
+	struct even_sequence;
 
-// namespace boost {
-//   namespace property_tree {
-//     template<typename String, typename Translator> class string_path;
 
-//     template<typename Ch, typename Traits, typename Alloc> 
-//       struct path_of<std::basic_string< Ch, Traits, Alloc >>;
-//     template<typename String, typename Translator> 
-//       string_path< String, Translator > 
-//       operator/(string_path< String, Translator > p1, 
-//                 const string_path< String, Translator > & p2);
-//     template<typename String, typename Translator> 
-//       string_path< String, Translator > 
-//       operator/(string_path< String, Translator > p1, 
-//                 const typename String::value_type * p2);
-//     template<typename String, typename Translator> 
-//       string_path< String, Translator > 
-//       operator/(const typename String::value_type * p1, 
-//                 const string_path< String, Translator > & p2);
-//   }
-// }
 
-// namespace boost { namespace property_tree {
-	
-// 	template<>
-// 	struct path_of<std::string> // this overloading already exists
-// 	{
-// 		typedef std::string key_type; // ptree key_type 
-// 		typedef std::string path_type; // 
+	template <typename T, T N>
+	struct odd_sequence;
 
-// 		struct type
-// 		{
-// 		private:
-// 			path_type 	m_path;
-// 			size_t 		m_parseIdx;
-// 		public:
-// 			// all that is convertible to path_type
-// 			explicit type(key_type url) = delete;
 
-// 			/**
-// 			 * @param urlPath only path either relative or absolute 
-// 			 * not url!
-// 			 * */
-// 			template <typename String>
-// 			type(const String& urlRawPath);
-// 		};
-// 	};
 
-	// template <>
-	// std::string operator/(path_of<struct Url>::type&);
-	
-// };/*property_tree*/}; // boost
+	template <std::size_t N>
+	struct is_even : std::conditional_t<bool(N % 2 == 0), std::true_type, std::false_type>
+	{
+	};
+
+
+	template <std::size_t N>
+	constexpr auto is_even_v = is_even<N>::value;
+		
+
+	template <class Unary_op<typename>, typename... Args>
+	struct SelectionOp
+	{
+		using pack = std::tuple<Args...>;
+		
+
+		template <std::size_t... index>
+		static constexpr bool value(std::integer_sequence<std::size_t, index...> seq)
+		{
+			std::conjunction<
+				Unary_op<
+					typename std::tuple_element<index, pack>::type, is_even<index>::value
+				>...>::value;
+				
+			return 0;
+		};
+	};
+}; // namespace metaUtils
 
 
 template <class EndpointData_T
@@ -107,10 +113,14 @@ class Router
 {
 	// EndpointData_T is comparable with bool to indicate whether initide or not
 public:
-	struct LNRIterator;
+	struct LNRIterator; 
 private:
-	struct Node_T;
-	
+	struct Node_T; // demand copy constructibled
+
+	constexpr static auto cpyCable = std::is_copy_constructible_v<EndpointData_T>;
+
+	constexpr static auto mvCable = std::is_move_constructible_v<EndpointData_T>;
+
 	// think about void cause of deleting allocator<void> from c++17
 	static_assert(not std::is_same_v<EndpointData_T, void>, "void");
 	// static_assert(not std::is_pointer_v<EndpointData_T>, "ptr");
@@ -123,6 +133,8 @@ private:
 	// 	"false initicates default initialization!");
 
 	using key_type = std::string;
+
+	/* children should be sorted */
 	using Router_T = pt::basic_ptree<key_type, Node_T>;
 
 	constexpr static const char* def_realm = nullptr;
@@ -179,9 +191,6 @@ private:
 		// also for iterating
 	};
 
-	// using rebindA_T = std::allocator_traits<Alloc>::rebind_alloc<Node_T>;
-	// using rebindATrs_T = std::allocator_traits<Alloc>::rebind_traits<Node_T>;
-
 
 	using CharT = typename key_type::value_type;
 
@@ -189,6 +198,11 @@ private:
 
 	using NativeIter_T = typename Router_T::iterator;
 	using ConstNativeIter_T = typename Router_T::const_iterator;
+
+
+	static boost::optional 
+	GetChildOptional(Router_T& router, const key_type&);
+
 public:
 	// Requirement of AllocatorAwareContainer
 	// using value_type = typename rebindA_T::value_type;
@@ -218,12 +232,8 @@ public:
 		using iterator_category = std::output_iterator_tag;
 
 	private:
-		// native iterator or pointer?
-		// std::pair<key_type, property_tree>
 		NativeIter_T m_nativeIter;
 		
-		// LNRIterator(reference);
-
 
 		LNRIterator(NativeIter_T);
 
@@ -331,55 +341,142 @@ public:
 	using const_iterator = struct const_LNRIterator;
 
 	
-	// iterator is output!
-	// nlr, lnr, lrn (прямой, центрированный, обратный); url: 
-	// https://ru.wikipedia.org/wiki/%D0%9E%D0%B1%D1%85%D0%BE%D0%B4_%D0%B4%D0%B5%D1%80%D0%B5%D0%B2%D0%B0
-	
 	// for all that is convertible to std::string
 	template <typename T, typename U>
 	Router(const T& host, const U& scheme, uint16_t port = 80);
 
 
+	reference
+	operator[](const key_type& url);
+
+
+	
 	std::pair<iterator, bool>
 	// int
 	InsertRoute(
-		const std::string& url,
+		const key_type& url,
 		const EndpointData_T& value,
 		const char* realm = def_realm);
 
 
 	std::pair<iterator, bool> InsertRoute_hint(
-			const std::string& url,
+			const key_type& url,
 			const EndpointData_T& value,
 			const char* realm /*= def_realm*/,
 			const_iterator hint);
 
 
-	iterator FindRoute(const std::string& urlPath) /*noexcept*/;
+	iterator FindRoute(const key_type& urlPath) /*noexcept*/;
 
 
-	iterator FindRoute(const std::string& urlPath, std::nothrow_t) noexcept;
+	iterator FindRoute(const key_type& urlPath, std::nothrow_t) noexcept;
 
 
-	iterator FindRouteOrNearestParent(const std::string& urlPath) /*noexcept*/;
+	iterator FindRouteOrNearestParent(const key_type& urlPath) /*noexcept*/;
 
 
-	iterator FindRouteOrNearestParent(const std::string& urlPath, std::nothrow_t) noexcept;
+	iterator FindRouteOrNearestParent(const key_type& urlPath, std::nothrow_t) noexcept;
 
 
-	// template <typename... Args>
-	// std::pair<iterator, bool>
-	// EmplaceRoute(
-	// 	const std::string& url,
-	// 	const char* realm = def_realm,
-	// 	Args&&... args);
+
+	// children should be sorted by key_type
+
+	// if move_constructible and
+	// move_assignable
+	// not needed cause of property_tree 
+	// does not care move semantic
+	// struct MveInsertionPair
+	// {
+	// 	MveInsertionPair(const std::string& url, 
+	// 		EndpointData_T&& data);
+
+	// 	const std::string& m_url;
+	// 	EndpointData_T&& m_data;
+	// };
+
+
+	/* extremely hard */
+	template <typename... Args, 
+		typename = std::enable_if_t<
+			std::conjunction_v<std::is_same<Args, CpyInsertionPair>...>
+		>
+	>
+	std::array<std::pair<iterator, bool>, sizeof... (Args)>
+	InsertAIT(Args&&... args);
+
+
+
+	template <typename T = void, typename U = void>
+	struct InsertionPair : public std::false_type
+	{
+		InsertionPair(const T&, const U&) = default;
+	};
+
+
+
+	template <>
+	struct InsertionPair<key_type, EndpointData_T> : public std::true_type
+	{
+		InsertionPair(const key_type& key, const EndpointData_T& data)
+			: m_key(key)
+			, m_data(data)
+		{
+
+		};
+		const key_type& m_key;
+		const EndpointData_T m_data;
+	};
+
+
+
+	template <typename T, bool parity>
+	struct InsertionFusion;
+
+
+	template <>
+	struct InsertionFusion<key_type, true>
+	{
+		
+	};
+
+
+	template <>
+	struct InsertionFusion<EndpointData_T, false>
+	{
+
+	};
+
+
+
+	template <typename... Args
+		, std::enable_if_t<
+			metaUtils::SelectionOp<
+				InsertionFusion, Args...>::value(std::make_index_sequence<sizeof... Args>{})
+		>
+	>
+	std::array<std::pair<iterator, bool>, sizeof... (Args) / 2>
+	InsertSiblings(const key_type& commonPath, const Args&... args);
+
 
 
 	void clear() noexcept; 
 
-	// friend void TestTraverse();
+
+
+	static std::pair<Router_T&, bool>
+	insert_child(Router& router, 
+		const key_type& path, const EndpointData_T& data);
+
+
+
+	static std::pair<Router_T&, bool>
+	insert_default_child(Router& router,
+		const key_type& path);
+
+
 
 	LNRIterator end();
+
 
 
 	const_LNRIterator cend();
@@ -387,10 +484,27 @@ private:
 	LNRIterator begin();
 
 
+
 	const_LNRIterator cbegin();
+
+
+
+	template <typename... Args,
+		typename = std::enable_if_t<
+			std::conjunction_v<std::is_same<Args, key_type>...>
+		>
+	>
+	key_type
+	FindCommonPath(const key_type& url, const Args&... urls);
+	// need expand for all that convertable for key_type
+
+	#if defined(UNIT_NATIVE_TEST)
+	friend class NativeTestClass;
+	#endif // defined(UNIT_NATIVE_TEST) 
+
 private:
 	std::string m_host; // standart allocator
-	std::string m_scheme; 
+	std::string m_scheme;
 	uint16_t m_port;
 public:
 	Router_T m_router;
