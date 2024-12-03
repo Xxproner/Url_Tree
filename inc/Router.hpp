@@ -13,6 +13,9 @@
 #include <string_view>
 #include <iterator>
 
+
+#include <boost/optional.hpp>
+
 #include "boost/property_tree/ptree.hpp"
 #include "boost/property_tree/string_path.hpp"
 
@@ -86,7 +89,7 @@ namespace metaUtils
 	constexpr auto is_even_v = is_even<N>::value;
 		
 
-	template <class Unary_op<typename>, typename... Args>
+	template <template <typename, std::size_t> class Unary_op, typename... Args>
 	struct SelectionOp
 	{
 		using pack = std::tuple<Args...>;
@@ -97,7 +100,7 @@ namespace metaUtils
 		{
 			std::conjunction<
 				Unary_op<
-					typename std::tuple_element<index, pack>::type, is_even<index>::value
+					typename std::tuple_element<index, pack>::type, index
 				>...>::value;
 				
 			return 0;
@@ -134,8 +137,8 @@ private:
 
 	using key_type = std::string;
 
-	/* children should be sorted */
-	using Router_T = pt::basic_ptree<key_type, Node_T>;
+	/* children sorted by descending order */
+	using Router_T = pt::basic_ptree<key_type, Node_T>; // self_type
 
 	constexpr static const char* def_realm = nullptr;
 
@@ -200,8 +203,20 @@ private:
 	using ConstNativeIter_T = typename Router_T::const_iterator;
 
 
-	static boost::optional 
-	GetChildOptional(Router_T& router, const key_type&);
+	static boost::optional<Router_T&>
+	GetDirectChildOptional(Router_T& parent, const key_type& key);
+
+
+
+	static Router_T&
+	PutDirectChild(Router_T& parent, 
+		const key_type& key, const Router_T& child);
+
+
+
+	static Router_T&
+	AddDirectChild(Router_T& parent, 
+		const key_type& key, const Router_T& child);
 
 public:
 	// Requirement of AllocatorAwareContainer
@@ -396,64 +411,35 @@ public:
 
 
 	/* extremely hard */
-	template <typename... Args, 
-		typename = std::enable_if_t<
-			std::conjunction_v<std::is_same<Args, CpyInsertionPair>...>
-		>
-	>
+	template <typename... Args>
 	std::array<std::pair<iterator, bool>, sizeof... (Args)>
 	InsertAIT(Args&&... args);
 
 
 
-	template <typename T = void, typename U = void>
-	struct InsertionPair : public std::false_type
-	{
-		InsertionPair(const T&, const U&) = default;
-	};
-
-
-
-	template <>
-	struct InsertionPair<key_type, EndpointData_T> : public std::true_type
-	{
-		InsertionPair(const key_type& key, const EndpointData_T& data)
-			: m_key(key)
-			, m_data(data)
-		{
-
-		};
-		const key_type& m_key;
-		const EndpointData_T m_data;
-	};
-
-
-
-	template <typename T, bool parity>
+	template <typename T, std::size_t>
 	struct InsertionFusion;
 
 
-	template <>
-	struct InsertionFusion<key_type, true>
+
+	template <std::size_t N>
+	struct InsertionFusion<key_type, N> : std::conditional<metaUtils::is_even<N>::value, 
+		std::true_type, std::false_type>
 	{
 		
 	};
 
 
-	template <>
-	struct InsertionFusion<EndpointData_T, false>
+	template <std::size_t N>
+	struct InsertionFusion<EndpointData_T, N> : std::conditional<!metaUtils::is_even<N>::value,
+		std::true_type, std::false_type>
 	{
 
 	};
 
 
 
-	template <typename... Args
-		, std::enable_if_t<
-			metaUtils::SelectionOp<
-				InsertionFusion, Args...>::value(std::make_index_sequence<sizeof... Args>{})
-		>
-	>
+	template <typename... Args>
 	std::array<std::pair<iterator, bool>, sizeof... (Args) / 2>
 	InsertSiblings(const key_type& commonPath, const Args&... args);
 
@@ -489,14 +475,11 @@ private:
 
 
 
-	template <typename... Args,
-		typename = std::enable_if_t<
-			std::conjunction_v<std::is_same<Args, key_type>...>
-		>
-	>
+	template <typename... Args>
+	// need expand for all that convertable for key_type
 	key_type
 	FindCommonPath(const key_type& url, const Args&... urls);
-	// need expand for all that convertable for key_type
+	
 
 	#if defined(UNIT_NATIVE_TEST)
 	friend class NativeTestClass;

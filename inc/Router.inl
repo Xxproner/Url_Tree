@@ -548,14 +548,98 @@ Router<EndpointData_T>::operator[](
 
 
 /**
- * @brief get child by binary search
+ * @brief get direct child by binary search
+ * 
+ * @param key is key of direct child. 
  * */
 template <typename EndpointData_T>
-boost::optional<typename Router<EndpointData_T>::Router_T>
-GetChildOptional(Router_T& router, const key_type& key)
+boost::optional<typename Router<EndpointData_T>::Router_T&>
+// typename Router<EndpointData_T>::Router_T*
+Router<EndpointData_T>::GetDirectChildOptional(Router_T& parent, const key_type& key)
 {
-	return std::binary_search(router.begin(), router.end());
+	using opt = boost::optional<Router_T&>;
+
+	bool found = false;
+	auto lower = std::lower_bound(parent.begin(), parent.end(),
+		key, [&found](const typename NativeIter_T::value_type& node, const key_type& key){
+			const auto compare_value = key.compare(node.first);
+			if (compare_value == 0)
+			{
+				found = true;
+			}
+
+			return compare_value < 0;
+		});
+	return found ? opt{lower->second} : opt{};
 };
+
+
+/**
+ * @brief put direct child. If child already
+ * exists do nothing.
+ * 
+ * @param key is key of direct child.
+ * @param child is child to put
+ * */
+template <typename EndpointData_T>
+typename Router<EndpointData_T>::Router_T&
+Router<EndpointData_T>::PutDirectChild(Router_T& parent, 
+	const key_type& key, const Router_T& child)
+{
+	bool found = false;
+	auto lower = std::lower_bound(parent.begin(), parent.end(),
+		key, [&found](const typename NativeIter_T::value_type& node, const key_type& key){
+			const auto compare_value = key.compare(node.first);
+			if (compare_value == 0)
+			{
+				found = true;
+			}
+
+			return compare_value < 0;
+		});
+	if (!found)
+	{
+		/* iterator insert(iterator where, const value_type & value); */
+		lower = parent.insert(lower, std::make_pair(key, child));
+	}
+
+	 return lower->second;
+};
+
+
+
+/**
+ * @brief add direct child. If child already
+ * exists replace it.
+ * 
+ * @param key is key of direct child.
+ * @param child is child to add
+ * */
+template <typename EndpointData_T>
+typename Router<EndpointData_T>::Router_T&
+Router<EndpointData_T>::AddDirectChild(Router_T& parent, 
+	const key_type& key, const Router_T& child)
+{
+	bool found = false;
+	auto lower = std::lower_bound(parent.begin(), parent.end(),
+		key, [&found](const key_type& key, const typename NativeIter_T::value_type& node){
+			const auto compare_value = key.compare(node.first);
+			if (compare_value == 0)
+			{
+				found = true;
+			}
+
+			return compare_value < 0;
+		});
+
+	if (found)
+	{
+		lower = parent.erase(lower);
+	}
+
+	return parent.insert(lower, std::make_pair(key, child)).second;
+};
+
 
 
 
@@ -570,24 +654,20 @@ Router<EndpointData_T>::InsertRoute(
 	UTREE_ASSERT(UrlUtils::CheckUrlCorrectness(url), 
 		"Invalid url path");
 
-	auto urlPaths = UrlUtils::SplitString(
-	TrimString(url, '/'));
-
+	auto urlPaths = UrlUtils::SplitString(url);
 	const size_t numPaths = urlPaths.size();
 
 	Router_T* parent = &m_router;
-	boost::optional child = parent->get_child_optional(
-			path_type{urlPaths.front(), '/'});
+	boost::optional<Router_T&> child = GetDirectChildOptional(*parent, urlPaths.front());
 
-	// get child until possible
+	/* get child until possible */
 	size_t numCurrentPath = 1;
 	while (numCurrentPath < numPaths &&
 			child)
 	{
 		parent = std::addressof(child.get());
 		
-		child = parent->get_child_optional(
-			path_type{urlPaths[numCurrentPath++], '/'});
+		child = GetDirectChildOptional(*parent, urlPaths[numCurrentPath++]);
 	}
 
 	if (child) // numCurrentPath == numPaths
@@ -598,14 +678,14 @@ Router<EndpointData_T>::InsertRoute(
 		numCurrentPath--;
 		while ((numPaths - numCurrentPath) > 1)
 		{
-			auto& newBornChild = parent->put(path_type{urlPaths[numCurrentPath++], '/'},
-				Node_T(EndpointData_T{}, realm, parent));
+			auto& newBornChild = PutDirectChild(*parent, urlPaths[numCurrentPath++],
+				Router_T{Node_T{EndpointData_T{}, realm, parent}});
 			
 			parent = std::addressof(newBornChild);
 		}
 
-		auto& newBornChild = parent->puth(path_type{urlPaths.back(), '/'},
-			Node_T(value, realm, parent));
+		auto& newBornChild = PutDirectChild(*parent, urlPaths.back(),
+			Router_T{Node_T{value, realm, parent}});
 
 		return std::make_pair<iterator, bool>(iterator(newBornChild), true);
 	}
@@ -740,16 +820,6 @@ Router<EndpointData_T>::FindRouteOrNearestParent(const key_type& urlPath, std::n
 };
 
 
-template <typename EndpointData_T>
-Router<EndpointData_T>::CpyInsertionPair::CpyInsertionPair(
-	const key_type& url, 
-	const EndpointData_T& data)
-	: m_url(url)
-	, m_data(data)
-{
-	// static_assert(std::is_copy_constructible_v<EndpointData_T>, "copy");
-}
-
 
 // template <typename EndpointData_T>
 // typename Router<EndpointData_T>::iterator
@@ -764,42 +834,42 @@ Router<EndpointData_T>::CpyInsertionPair::CpyInsertionPair(
 
 
 // insert all-in-time
-template <typename EndpointData_T>
-template <typename... Args, typename U>
-std::array<std::pair<typename Router<EndpointData_T>::iterator, bool>, sizeof... (Args)>
-Router<EndpointData_T>::InsertAIT(Args&&... args)
-{
-	std::array<const CpyInsertionPair&, sizeof... (Args)> allDataArr {args...};
+// template <typename EndpointData_T>
+// template <typename... Args, typename U>
+// std::array<std::pair<typename Router<EndpointData_T>::iterator, bool>, sizeof... (Args)>
+// Router<EndpointData_T>::InsertAIT(Args&&... args)
+// {
+// 	std::array<const CpyInsertionPair&, sizeof... (Args)> allDataArr {args...};
 
-	UTREE_ASSERT(std::all_of(allDataArr.cbegin(), allDataArr.cend(), [](const CpyInsertionPair& insertionPair){
-		return UrlUtils::CheckUrlCorrectness(insertionPair.url);
-	}), "Invalid url path!");
+// 	UTREE_ASSERT(std::all_of(allDataArr.cbegin(), allDataArr.cend(), [](const CpyInsertionPair& insertionPair){
+// 		return UrlUtils::CheckUrlCorrectness(insertionPair.url);
+// 	}), "Invalid url path!");
 
-	std::array<std::pair<iterator, bool>, sizeof... (Args)> insertedIterArr;
+// 	std::array<std::pair<iterator, bool>, sizeof... (Args)> insertedIterArr;
 
-	std::array<int, sizeof... (Args)> urlDeepsArr;
-	std::size_t maxDeep = 0ul;
+// 	std::array<int, sizeof... (Args)> urlDeepsArr;
+// 	std::size_t maxDeep = 0ul;
 
-	std::transform(allDataArr.cbegin(), allDataArr.cend(), urlDeepsArr.begin(),
-		[&maxDeep](const CpyInsertionPair& insertionPair){
-			const std::size_t currDeep = 
-				insertionPair.url.count('/');
-			if (currDeep > maxDeep)
-			{
-				maxDeep = currDeep;
-			}
+// 	std::transform(allDataArr.cbegin(), allDataArr.cend(), urlDeepsArr.begin(),
+// 		[&maxDeep](const CpyInsertionPair& insertionPair){
+// 			const std::size_t currDeep = 
+// 				insertionPair.url.count('/');
+// 			if (currDeep > maxDeep)
+// 			{
+// 				maxDeep = currDeep;
+// 			}
 
-			return currDeep;
-		});
+// 			return currDeep;
+// 		});
 
-	Router_T* parent = &m_router;
-	for (std::size_t deep = 0; deep < maxDeep; ++deep)
-	{
+// 	Router_T* parent = &m_router;
+// 	for (std::size_t deep = 0; deep < maxDeep; ++deep)
+// 	{
 		
-	}
+// 	}
 
-	return allDataArr;
-};
+// 	return allDataArr;
+// };
 
 
 
@@ -811,12 +881,15 @@ Router<EndpointData_T>::InsertAIT(Args&&... args)
  * @return return the common path
  * */
 template <typename EndpointData_T>
-template <typename... Args, typename>
+template <typename... Args>
 typename Router<EndpointData_T>::key_type
 Router<EndpointData_T>::FindCommonPath(
 	const key_type& url, 
 	const Args&... urls)
 {
+	// need expand for all that convertable for key_type
+	static_assert(std::conjunction_v<std::is_same<Args, key_type>...>, "Invalid args' types");
+
 	std::array<const key_type*, sizeof... (Args)> urlsArr {&urls...};
 	std::size_t commonPathPos = url.length();
 
@@ -853,64 +926,64 @@ Router<EndpointData_T>::FindCommonPath(
 /**
  * @brief Insert the node at the given path. Create any missing parents. 
  * If there already is a node at the path, nothing. */
-template <typename EndpointData_T>
-std::pair<typename Router<EndpointData_T>::Router_T&, bool>
-Router<EndpointData_T>::insert_child(
-	Router_T& router,
-	const path_type& path, const EndpointData_T& data) 
-{
-	/* this router type */
-	auto iter = InsertRoute(path, data)
-	return {iter.first.m_nativeIter.second, iter.second};
-}
+// template <typename EndpointData_T>
+// std::pair<typename Router<EndpointData_T>::Router_T&, bool>
+// Router<EndpointData_T>::insert_child(
+// 	Router_T& router,
+// 	const path_type& path, const EndpointData_T& data) 
+// {
+// 	/* this router type */
+// 	auto iter = InsertRoute(path, data)
+// 	return {iter.first.m_nativeIter.second, iter.second};
+// }
 
 
 /**
  * @brief Insert the default node at the given path. Create any missing parents.
  * If there already is a node at the path, nothing. */
-template <typename EndpointData_T>
-std::pair<typename Router<EndpointData_T>::Router_T&, bool>
-Router<EndpointData_T>::insert_default_child(
-	Router_T& router,
-	const key_type& path)
-{
-	/**
-	 * REPLACE: REPLACE NODE
-	 * NOTHING: NOTHING
-	 * */
-	bool isInserted = false;
-	UTREE_ASSERT(UrlUtils::CheckUrlCorrectness(path));
+// template <typename EndpointData_T>
+// std::pair<typename Router<EndpointData_T>::Router_T&, bool>
+// Router<EndpointData_T>::insert_default_child(
+// 	Router_T& router,
+// 	const key_type& path)
+// {
+// 	/**
+// 	 * REPLACE: REPLACE NODE
+// 	 * NOTHING: NOTHING
+// 	 * */
+// 	bool isInserted = false;
+// 	UTREE_ASSERT(UrlUtils::CheckUrlCorrectness(path), "Invalid url path!");
 
-	std::vector<std::string> urlPathPieces =
-		UrlUtils::SplitString(path);
+// 	std::vector<std::string> urlPathPieces =
+// 		UrlUtils::SplitString(path);
 
-	Router_T& parent = m_router;
+// 	Router_T& parent = m_router;
 
-	boost_optional child = parent.get_child_optional(urlPathPieces.front());
-	std::size_t index = 1;
-	while (child && index < urlPathPieces.size())
-	{
-		parent = child.get();
-		child = parent.get_child_optional(urlPathPieces[index++]);
-	}
+// 	boost_optional child = parent.get_child_optional(urlPathPieces.front());
+// 	std::size_t index = 1;
+// 	while (child && index < urlPathPieces.size())
+// 	{
+// 		parent = child.get();
+// 		child = parent.get_child_optional(urlPathPieces[index++]);
+// 	}
 
-	if (!child)
-	{
-		/* insert default */
-		if (index < urlPathPieces.size())
-		{
-			while (index < urlPathPieces.size())
-			{
-				parent = parent.put_child(urlPathPieces[index++], 
-					Node_T(EndpointData_T{}, nullptr, std::addressof(parent)));
-			}
+// 	if (!child)
+// 	{
+// 		/* insert default */
+// 		if (index < urlPathPieces.size())
+// 		{
+// 			while (index < urlPathPieces.size())
+// 			{
+// 				parent = parent.put_child(urlPathPieces[index++], 
+// 					Node_T(EndpointData_T{}, nullptr, std::addressof(parent)));
+// 			}
 			
-			isInserted = true;			
-		}
-	}
+// 			isInserted = true;			
+// 		}
+// 	}
 
-	return {parent, isInserted};
-}
+// 	return {parent, isInserted};
+// }
 
 // template <typename EndpointData_T>
 // const typename Router<EndpointData_T>::Router_T&
@@ -920,16 +993,6 @@ Router<EndpointData_T>::insert_default_child(
 // 	/* this router type */
 // 	return InsertRoute(path, data).first.m_nativeIter.second;
 // }
-
-
-
-
-template <typename Fs, typename Sd, std::size_t SIZE, typename... U>
-void PlacementMakePair(std::array<std::pair<const Fs&, const Sd&>>& buf,
-	std::size_t& offset)
-{
-	// nothing
-};
 
 template <typename Fs, typename Sd, std::size_t SIZE, typename... U>
 void PlacementMakePair(std::array<std::pair<const Fs&, const Sd&>, SIZE>& buf, 
@@ -944,17 +1007,30 @@ void PlacementMakePair(std::array<std::pair<const Fs&, const Sd&>, SIZE>& buf,
 };
 
 
+
 template <typename Fs, typename Sd, std::size_t SIZE, typename... U>
 void PlacementMakePair(std::array<std::pair<const Fs&, const Sd&>, SIZE>& buf, 
 	std::size_t&& offset, 
 	const Fs& first, const Fs& second, 
 	std::size_t value, U&&... args)
 {
-	buf[offset] = std::make_pair(ptr, value);
+	buf[offset] = std::make_pair(first, second);
 	++offset;
 
 	PlacementMakePair(buf, offset, std::forward<U>(args)...);
 };
+
+
+
+template <typename Fs, typename Sd, std::size_t SIZE>
+void PlacementMakePair(std::array<std::pair<const Fs&, const Sd&>, SIZE>& buf,
+	std::size_t& offset)
+{
+	// nothing
+};
+
+
+
 
 
 /**
@@ -963,74 +1039,78 @@ void PlacementMakePair(std::array<std::pair<const Fs&, const Sd&>, SIZE>& buf,
  * @return return array of pair of iter on insertion node and 
  * bool indicates inserted or not
  * */
-template <typename EndpointData_T>
-template <typename... Args, typename>
-std::array<std::pair<typename Router<EndpointData_T>::iterator, bool>, sizeof... (Args) / 2>
-Router<EndpointData_T>::InsertSiblings(
-	const key_type& commonPath, const Args&... args)
-{
-	/* Args == const key_type&, const EndpointData_t&, key_type& and etc */
+// template <typename EndpointData_T>
+// template <typename... Args, typename>
+// std::array<std::pair<typename Router<EndpointData_T>::iterator, bool>, sizeof... (Args) / 2>
+// Router<EndpointData_T>::InsertSiblings(
+// 	const key_type& commonPath, const Args&... args)
+// {
+// 	/* Args == const key_type&, const EndpointData_t&, key_type& and etc */
 
-	UTREE_ASSERT(UrlUtils::CheckUrlCorrectness(commonPath), "Invalid url path!");
+// , std::enable_if_t<
+// 			metaUtils::SelectionOp<
+// 				InsertionFusion, Args...>::value(std::make_index_sequence<sizeof... Args>{})
+// 		>
+// 	UTREE_ASSERT(UrlUtils::CheckUrlCorrectness(commonPath), "Invalid url path!");
 
-	std::array<std::pair<const key_type*, const EndpointData_T*>> pack;
+// 	std::array<std::pair<const key_type*, const EndpointData_T*>> pack;
 	
-	/* fill array */
-	PlacementMakePair(pack, 0, std::addressof(args)...);
+// 	/* fill array */
+// 	PlacementMakePair(pack, 0, std::addressof(args)...);
 
-	std::array<std::pair<iterator, bool>, sizeof... (Args) / 2> arrIterAndIsInserted;
+// 	std::array<std::pair<iterator, bool>, sizeof... (Args) / 2> arrIterAndIsInserted;
 	
-	// check all have same parent route:
-	// this parent route is empty or end with `/'
-	// and last route must not have `/'
-	for (std::size_t i = 0; i < sizeof ... (Args) / 2; i = i + 2)
-	{
+// 	// check all have same parent route:
+// 	// this parent route is empty or end with `/'
+// 	// and last route must not have `/'
+// 	for (std::size_t i = 0; i < sizeof ... (Args) / 2; i = i + 2)
+// 	{
 		
-		/* optimization needed 
-			possible to check all urls in time!
-		*/
-		const key_type& url = *pack[i]; // not allowed!
-		UTREE_ASSERT(UrlUtils::CheckUrlCorrectness(url) && 
-			(url.find('/') == std::char_traits<CharT>::npos), "Invalid url path!");
-	}
+// 		/* optimization needed 
+// 			possible to check all urls in time!
+// 		*/
+// 		const key_type& url = *pack[i]; // not allowed!
+// 		UTREE_ASSERT(UrlUtils::CheckUrlCorrectness(url) && 
+// 			(url.find('/') == std::char_traits<CharT>::npos), "Invalid url path!");
+// 	}
 
-	/* go to the parent */
-	auto& [parent, isInserted] = insert_default_child(m_router, commonPath);
+// 	/* go to the parent */
+// 	auto& [parent, isInserted] = insert_default_child(m_router, commonPath);
 
-	if (isInserted)
-	{
-		/* we do not need to check existing. Node is a newbie */
-		for (std::size_t i = 0; i < sizeof... (Args); i = i + 2)
-		{
-			arrIterAndIsInserted[i] = {parent.put_child(*pack[i], *pack[i + 1]), true};
-		}
-	} else 
-	{
-		/* this is one possible solution. Benchmark needed! */
-		const std::size_t numberOfChildren = 
-			std::distance(parent.begin(), parent.cend());
-
-		
-		constexpr std::size_t magicNumber = 15;
-		if (numberOfChildren < magicNumber)
-		{
-			/* O(N^2) */
-			std::for_each(parent.begin(), parent.cend())
-		} else 
-		{
-			/* std::unordered_map */
-		}
+// 	if (isInserted)
+// 	{
+// 		/* we do not need to check existing. Node is a newbie */
+// 		for (std::size_t i = 0; i < sizeof... (Args); i = i + 2)
+// 		{
+// 			arrIterAndIsInserted[i] = {parent.put_child(*pack[i], *pack[i + 1]), true};
+// 		}
+// 	} else 
+// 	{
+// 		/* this is one possible solution. Benchmark needed! */
+// 		const std::size_t numberOfChildren = 
+// 			std::distance(parent.begin(), parent.cend());
 
 		
-		for (std::size_t i = 0; i < sizeof... (Args); ++i)
-		{
+// 		constexpr std::size_t magicNumber = 15;
+// 		if (numberOfChildren < magicNumber)
+// 		{
+// 			/* O(N^2) */
+// 			std::for_each(parent.begin(), parent.cend())
+// 		} else 
+// 		{
+// 			/* std::unordered_map */
+// 		}
 
-		}
-	}
+		
+// 		for (std::size_t i = 0; i < sizeof... (Args); ++i)
+// 		{
+
+// 		}
+// 	}
 
 
-	return allDataArr;
-}
+// 	return allDataArr;
+// }
 
 
 // template <typename EndpointData_T>

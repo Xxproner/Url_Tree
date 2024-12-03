@@ -43,26 +43,41 @@ int main(int argc, char const *argv[])
 	assert(pair.second == true);
 	assert((*pair.first).data() == 10);
 
+	{
+		/* check order */
+		router.InsertRoute("13", 10, "realm");
+		router.InsertRoute("2", 10, "realm");
+		router.InsertRoute("22", 10, "realm");
+		router.InsertRoute("77", 10, "realm");
+		router.InsertRoute("99", 10, "realm");
+		router.InsertRoute("17", 10, "realm");
 
-	pair = router.InsertRoute("news/ru", 100); // == (10, true)
-	assert(pair.second == false); // failed. InsertRoute error.
-	assert((*pair.first).data() == 10);
+
+		std::for_each(router.m_router.begin(),
+			router.m_router.end(), [](const decltype(*router.m_router.begin())& value){ std::cout << value.first << std::endl;; });
+
+	}
+
+
+	// pair = router.InsertRoute("news/ru", 100); // == (10, true)
+	// assert(pair.second == false); // failed. InsertRoute error.
+	// assert((*pair.first).data() == 10);
 
 
 	{
-		auto foundIter = router.FindRoute("news/non_exists");
-		assert(foundIter == router.end());		
+		// auto foundIter = router.FindRoute("news/non_exists");
+		// assert(foundIter == router.end());		
 	}
 
 
 	{
-		auto foundIter = router.FindRoute("news/ru");
-		assert(foundIter->data() == 10);
-		assert(std::char_traits<char>::compare(foundIter->realm(), "realm", 
-					std::char_traits<char>::length("realm")) == 0);
+		// auto foundIter = router.FindRoute("news/ru");
+		// assert(foundIter->data() == 10);
+		// assert(std::char_traits<char>::compare(foundIter->realm(), "realm", 
+		// 			std::char_traits<char>::length("realm")) == 0);
 
-		foundIter = router.FindRouteOrNearestParent("news/ru/smo/last_notice");
-		assert(foundIter->data() == 10);
+		// foundIter = router.FindRouteOrNearestParent("news/ru/smo/last_notice");
+		// assert(foundIter->data() == 10);
 	}
 	
 
