@@ -417,14 +417,11 @@ Router<EndpointData_T>::const_LNRIterator::GetIterFromThis(
 	const Router<EndpointData_T>::Router_T* node) const
 {
 	const Router_T* parentOfNode = node->data().Parent();
-	ConstNativeIter_T nativeIterSameDeep = parentOfNode->cbegin();
 
-	while (std::addressof(nativeIterSameDeep->second) != node)
-	{
-		nativeIterSameDeep++; // sf!
-	}
-
-	return nativeIterSameDeep;
+	return std::find_if(parentOfNode.begin(), parentOfNode.end(), 
+		[node](const LNRIterator& child){
+			return std::addressof(child.second) == node;
+		});
 };
 
 
@@ -543,12 +540,15 @@ Router<EndpointData_T>::operator[](
 {
 	UTREE_ASSERT (UrlUtils::CheckUrlCorrectness(url), "Invalid url path!");
 
-	return m_router.put(path_type{url, '/'}, EndpointData_T{}).data();
+	return AddChild(m_router, url, 
+		Router_T{Node_T{}});
 };
 
 
 /**
  * @brief get direct child by binary search
+ * Function do not check param correctness, 
+ * this is responsibility of the calling func.
  * 
  * @param key is key of direct child. 
  * */
@@ -574,9 +574,41 @@ Router<EndpointData_T>::GetDirectChildOptional(Router_T& parent, const key_type&
 };
 
 
+
+/**
+ * @brief get child by binary search.
+ * Function do not check param correctness, 
+ * this is responsibility of the calling func.
+ * 
+ * @param key is key of child. 
+ * */
+template <typename EndpointData_T>
+boost::optional<typename Router<EndpointData_T>::Router_T&>
+Router<EndpointData_T>::GetChildOptional(Router_T& parent, const key_type& key)
+{
+	using opt = boost::optional<Router_T&>;
+
+	auto urlPathPieces = UrlUtils::SplitString(key);
+	Router_T* parentNode = nullptr;
+
+	opt child = GetDirectChildOptional(parent, urlPathPieces.front());
+	std::size_t index = 1;
+	while(child && index < urlPathPieces.size())
+	{
+		parentNode = std::addressof(child.get());
+		child = GetDirectChildOptional(*parentNode, urlPathPieces[index++]);
+	}
+
+	return child ? child : opt{};
+};
+
+
+
 /**
  * @brief put direct child. If child already
  * exists do nothing.
+ * Function do not check param correctness, 
+ * this is responsibility of the calling func.
  * 
  * @param key is key of direct child.
  * @param child is child to put
@@ -611,6 +643,8 @@ Router<EndpointData_T>::PutDirectChild(Router_T& parent,
 /**
  * @brief add direct child. If child already
  * exists replace it.
+ * Function do not check param correctness, 
+ * this is responsibility of the calling func.
  * 
  * @param key is key of direct child.
  * @param child is child to add
@@ -732,7 +766,7 @@ Router<EndpointData_T>::FindRoute(const key_type& url) /*noexcept*/
 {
 	UTREE_ASSERT(UrlUtils::CheckUrlCorrectness(url), "Invalid url path!");
 
-	if (auto child = m_router.get_child_optional(path_type{url, '/'});
+	if (auto child = GetChildOptional(m_router, url);
 			child)
 	{
 		return iterator{child.get()};
@@ -743,20 +777,20 @@ Router<EndpointData_T>::FindRoute(const key_type& url) /*noexcept*/
 
 
 
-template <typename EndpointData_T>
-typename Router<EndpointData_T>::iterator
-Router<EndpointData_T>::FindRoute(const key_type& url, std::nothrow_t) noexcept
-{
-	UTREE_ASSERT(UrlUtils::CheckUrlCorrectness(url), "Invalid url path!");
+// template <typename EndpointData_T>
+// typename Router<EndpointData_T>::iterator
+// Router<EndpointData_T>::FindRoute(const key_type& url, std::nothrow_t) noexcept
+// {
+// 	UTREE_ASSERT(UrlUtils::CheckUrlCorrectness(url), "Invalid url path!");
 
-	if (auto child = m_router.get_child_optional(path_type{url, '/'});
-				child)
-	{
-		return iterator{child.get()};
-	}
+// 	if (auto child = m_router.get_child_optional(path_type{url, '/'});
+// 				child)
+// 	{
+// 		return iterator{child.get()};
+// 	}
 
-	return end();
-};
+// 	return end();
+// };
 
 
 
@@ -772,18 +806,17 @@ Router<EndpointData_T>::FindRouteOrNearestParent(const key_type& urlPath) /*noex
 	const std::size_t numPathPieces = urlPathPieces.size();
 
 	Router_T* parent = &m_router;
-	boost::optional child = parent->get_child_optional(
-			path_type{urlPathPieces.front(), '/'});
+	boost::optional child = GetDirectChildOptional(
+		*parent, urlPathPieces.front());
 	
-	// get child until possible
+	/* get child until possible */
 	std::size_t numCurrPathPiece = 1;
-	while (numCurrPathPiece < numPathPieces &&
-			child)
+	while (child && numCurrPathPiece < numPathPieces)
 	{
 		parent = std::addressof(child.get());
 		
-		child = parent->get_child_optional(
-			path_type{urlPathPieces[numCurrPathPiece++], '/'});
+		child = GetDirectChildOptional(*parent,
+			urlPathPieces[numCurrPathPiece++]);
 	}
 
 	if (child)
@@ -796,28 +829,28 @@ Router<EndpointData_T>::FindRouteOrNearestParent(const key_type& urlPath) /*noex
 
 
 
-template <typename EndpointData_T>
-typename Router<EndpointData_T>::iterator
-Router<EndpointData_T>::FindRouteOrNearestParent(const key_type& urlPath, std::nothrow_t) noexcept
-{
-	UTREE_ASSERT(UrlUtils::CheckUrlCorrectness(urlPath), "Invalid url path!")
+// template <typename EndpointData_T>
+// typename Router<EndpointData_T>::iterator
+// Router<EndpointData_T>::FindRouteOrNearestParent(const key_type& urlPath, std::nothrow_t) noexcept
+// {
+// 	UTREE_ASSERT(UrlUtils::CheckUrlCorrectness(urlPath), "Invalid url path!")
 
-	std::vector<key_type> urlPathPieces = 
-		UrlUtils::SplitString(urlPath);
+// 	std::vector<key_type> urlPathPieces = 
+// 		UrlUtils::SplitString(urlPath);
 
-	auto& parent = m_router
-		, child = parent.get_child_optional(urlPathPieces.front());
+// 	auto& parent = m_router
+// 		, child = parent.get_child_optional(urlPathPieces.front());
 
-	std::size_t numCurrUrlPathPiece = 1;
-	while (numCurrUrlPathPiece < urlPathPieces.size() && 
-				child)
-	{
-		parent = child;
-		child = parent.get_child_optional(urlPathPieces[numCurrUrlPathPiece++]);
-	}
+// 	std::size_t numCurrUrlPathPiece = 1;
+// 	while (numCurrUrlPathPiece < urlPathPieces.size() && 
+// 				child)
+// 	{
+// 		parent = child;
+// 		child = parent.get_child_optional(urlPathPieces[numCurrUrlPathPiece++]);
+// 	}
 
-	return child ? child : parent;
-};
+// 	return child ? child : parent;
+// };
 
 
 

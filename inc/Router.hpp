@@ -208,6 +208,11 @@ private:
 
 
 
+	static boost::optional<Router_T&>
+	GetChildOptional(Router_T& parent, const key_type& key);
+
+
+
 	static Router_T&
 	PutDirectChild(Router_T& parent, 
 		const key_type& key, const Router_T& child);
@@ -384,13 +389,13 @@ public:
 	iterator FindRoute(const key_type& urlPath) /*noexcept*/;
 
 
-	iterator FindRoute(const key_type& urlPath, std::nothrow_t) noexcept;
+	// iterator FindRoute(const key_type& urlPath, std::nothrow_t) noexcept;
 
 
 	iterator FindRouteOrNearestParent(const key_type& urlPath) /*noexcept*/;
 
 
-	iterator FindRouteOrNearestParent(const key_type& urlPath, std::nothrow_t) noexcept;
+	// iterator FindRouteOrNearestParent(const key_type& urlPath, std::nothrow_t) noexcept;
 
 
 
@@ -489,7 +494,7 @@ private:
 	std::string m_host; // standart allocator
 	std::string m_scheme;
 	uint16_t m_port;
-public:
+// public:
 	Router_T m_router;
 };
 
