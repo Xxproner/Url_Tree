@@ -1,0 +1,1 @@
+Add move semantic to add/put-like function to avoid double copy
