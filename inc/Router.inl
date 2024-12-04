@@ -3,93 +3,216 @@
 #include <regex>
 #include <utility>
 
+
 class UrlUtils 
 {
 public:
-	static std::vector<std::string>
-		Split(std::string_view spliting_string);
+	template <typename CharT, 
+		typename Traits = std::char_traits<CharT>, 
+		typename Alloc = std::allocator<CharT>>
+	static std::vector<std::basic_string<CharT, Traits, Alloc>>
+		Split(std::basic_string_view<CharT, Traits> spliting_string);
 
-	static std::vector<std::string>
-		SplitString(const std::string& spliting_stream);
+
+	template <typename CharT, 
+		typename Traits = std::char_traits<CharT>,
+		typename Alloc = std::allocator<CharT>>
+	static std::vector<std::basic_string<CharT, Traits, Alloc>>
+		SplitString(const std::basic_string<CharT, Traits, Alloc>& spliting_stream);
 
 
+	template <typename CharT, 
+		typename Traits = std::char_traits<CharT>>
+	static void
+		CheckUrlCorrectness(std::nothrow_t, 
+			std::basic_string_view<CharT, Traits> url) noexcept;
+
+
+	template <typename CharT, 
+		typename Traits = std::char_traits<CharT>>
+	static bool
+		CheckUrlCorrectness(
+			std::basic_string_view<CharT, Traits> url);
+
+
+	template <typename CharT, 
+		typename Traits  = std::char_traits<CharT>, 
+		typename Alloc = std::allocator<CharT>>
+	static bool
+		CheckUrlCorrectness(
+			const std::basic_string<CharT, Traits, Alloc>& url);
+
+
+	template <typename CharT>
+	static bool 
+		CheckUrlCorrectness(const CharT* url);
+
+
+	template <typename CharT, 
+		typename Traits = std::char_traits<CharT>, 
+		typename Alloc = std::allocator<CharT>>
 	static void 
-		CheckUrlCorrectness(std::nothrow_t nthw, std::string_view url) noexcept;
+		EraseQueryParams(std::basic_string<CharT, Traits, Alloc>& url) noexcept;
 
 
-	static bool 
-		CheckUrlCorrectness(std::string_view url);
+	/* template regex */
+	template <typename CharT, 
+		typename Traits = std::char_traits<CharT>
+	>
+	const static std::basic_regex<CharT, Traits> urlPathRegex;
 
 
-	static bool 
-		CheckUrlCorrectness(const std::string& url);
-
-	
-	static bool 
-		CheckUrlCorrectness(const char* url);
+	/* not implemented yet! */
+	template <typename CharT>
+	constexpr static const CharT* GetUrlPathRegex();
 
 
-	static void 
-		EraseQueryParams(std::string& url) noexcept;
+	template <>
+	constexpr static const char* GetUrlPathRegex();
 
 
-	const static std::regex urlPathRegex;
+	template <>
+	constexpr static const wchar_t* GetUrlPathRegex();
 };
 
-// template <typename String>
-// Url<String>::Url(const String& url)
-// 	: m_raw(url)
-// {
-// 	// nothing
-// };
+
+template <>
+const char* UrlUtils::GetUrlPathRegex()
+{
+	return "[^/#?]+(/[^/#?]+)*";
+};
 
 
-// namespace boost { namespace property_tree {
-
-	// /*explicit*/ path_of<Url>::type::type(key_type urlPath)
-	// 	: m_path(std::move(urlPath.m_raw))
-	// 	, m_parseIdx(0ul)
-	// {
-	// 	// nothing
-	// };
+template <>
+const wchar_t* UrlUtils::GetUrlPathRegex()
+{
+	return L"[^/#?]+(/[^/#?]+)*";
+};
 
 
-	// template <typename String>
-	// path_of<overloading_type>::type::type(const String& urlRawPath)
-	// 	: m_path(urlRawPath)
-	// 	, m_parseIdx(0ul)
-	// {
-	// 	// nothing
-	// };
 
-// }; /*property_tree*/}; // boost
+template <typename CharT, 
+	typename Traits = std::char_traits<CharT>
+>
+const std::basic_regex<CharT, Traits> UrlUtils::urlPathRegex(
+	GetUrlPathRegex<CharT>());
 
-// template<>
-// std::string
-// boost::property_tree::operator/(path_of<struct Url>::type& urlPath)
-// {
-// 	std::string path;
-// 	auto urlLen = urlPath.m_path.length();
-// 	if (parseIdx != urlLen)
-// 	{
-// 		// check
-// 		if (urlPath.m_path[parseIdx] == '/')
-// 		{
-// 			parseIdx++;
-// 		}
 
-// 		nextSlashIdx = urlPath.m_path.find(parseIdx, '/');
-// 		if (nextSlashIdx == std::string::npos)
-// 		{
-// 			nextSlashIdx = urlLen;
-// 		}
+template <typename CharT, 
+	typename Traits, 
+	typename Alloc>
+std::vector<std::basic_string<CharT, Traits, Alloc>>
+	UrlUtils::Split(std::basic_string_view<CharT, Traits> spliting_string)
+{
+	std::vector<std::basic_string<CharT, Traits, Alloc>> splited_url;
+	size_t rd_pos = 0;
+    size_t curr_len = 0;
 
-// 		path = urlPath.m_path.substr(parseIdx, nextSlashIdx);
-// 		parseIdx = nextSalshIdx;
-// 	}
+	for (size_t i = 0; i < spliting_string.length(); ++i)
+	{
+		if (spliting_string[i] == static_cast<CharT>('/')) // is it safe?
+		{
+			splited_url.emplace_back(spliting_string.data() + rd_pos, curr_len);
+			rd_pos = i + 1;
+			curr_len = 0;
+		} else 
+		{
+		    ++curr_len;
+		}
+	}
 
-// 	return path;
-// };
+    if (rd_pos != spliting_string.length())
+    {
+        splited_url.emplace_back(spliting_string.data() + rd_pos, curr_len);
+    };
+
+	return splited_url; // RNVO
+};
+
+/**
+ * @param stringString presents 
+ * url path by standart without ending '/' 
+ * */
+template <typename CharT, 
+	typename Traits, 
+	typename Alloc>
+std::vector<std::basic_string<CharT, Traits, Alloc>>
+	UrlUtils::SplitString(
+		const std::basic_string<CharT, Traits, Alloc>& splitingString)
+{
+    constexpr CharT delimiter = static_cast<CharT, Traits, Alloc>('/');
+	auto numTokens = std::count(splitingString.cbegin(),
+		splitingString.cend(), '/') + 1;
+
+	std::vector<std::string> tokens;
+    tokens.reserve(numTokens);
+  
+    size_t startPos = 0ul
+    		, endPos = 0ul;
+
+    while ((endPos = splitingString.find(delimiter, startPos)) !=
+    			std::string::npos)
+    {
+    	tokens.emplace_back(splitingString.data(),
+    	    startPos, endPos - startPos);
+    	startPos = endPos + 1;
+    }
+
+    
+	tokens.emplace_back(splitingString.data(),
+    	startPos, splitingString.length());
+
+    return tokens;
+}
+
+
+template <typename CharT, 
+	typename Traits>
+bool UrlUtils::CheckUrlCorrectness(
+	std::basic_string_view<CharT, Traits> urlRawPath)
+{
+	std::basic_match<CharT, Traits> ignoring;
+	return std::regex_match(urlRawPath.data(), urlRawPath.data() + 
+		urlRawPath.length(), ignoring, urlPathRegex);
+};
+
+
+template <typename CharT, 
+	typename Traits,
+	typename Alloc>
+bool UrlUtils::CheckUrlCorrectness(
+	const std::basic_string<CharT, Traits, Alloc>& urlRawPath)
+{
+	return UrlUtils::CheckUrlCorrectness(
+		std::basic_string_view<CharT, Traits>{urlRawPath.c_str()});
+};
+
+
+template <typename CharT>
+bool UrlUtils::CheckUrlCorrectness(
+	const CharT* urlRawPath)
+{
+	return CheckUrlCorrectness(std::basic_string_view<CharT,std::char_traits<CharT>>{
+		urlRawPath});
+};
+
+
+template <typename CharT, 
+	typename Traits,
+	typename Alloc>
+void UrlUtils::EraseQueryParams(
+	std::string<CharT, Traits, Alloc>& url) noexcept
+{
+	std::size_t query_pm_spec_symbol_pos = url.find(static_cast<CharT>('?'));
+
+	if (query_pm_spec_symbol_pos != std::string::npos)
+	{
+		url.erase(query_pm_spec_symbol_pos);
+	}
+}
+// ========================================================
+// ========================================================
+// ========================================================
 
 
 template <typename EndpointData_T>
@@ -1023,7 +1146,7 @@ Router<EndpointData_T>::InsertLazyDefaultChild(
 		do
 		{
 			/* this is new born parent line
-				we do not need to check order 
+				we do not need to check order
 			*/
 			parent = std::addressof(
 				parent->add(urlPathPieces[index - 1], defaultData));
@@ -1043,6 +1166,7 @@ Router<EndpointData_T>::InsertLazyDefaultChild(
 // 	/* this router type */
 // 	return InsertRoute(path, data).first.m_nativeIter.second;
 // }
+
 
 template <typename Fs, typename Sd, std::size_t SIZE, typename... U>
 void PlacementMakePair(std::array<std::pair<const Fs&, const Sd&>, SIZE>& buf, 
@@ -1081,86 +1205,84 @@ void PlacementMakePair(std::array<std::pair<const Fs&, const Sd&>, SIZE>& buf,
 
 
 
-
-
 /**
  * @brief insert all sibling nodes
  * 
  * @return return array of pair of iter on insertion node and 
  * bool indicates inserted or not
  * */
-// template <typename EndpointData_T>
-// template <typename... Args, typename>
-// std::array<std::pair<typename Router<EndpointData_T>::iterator, bool>, sizeof... (Args) / 2>
-// Router<EndpointData_T>::InsertSiblings(
-// 	const key_type& commonPath, const Args&... args)
-// {
-// 	/* Args == const key_type&, const EndpointData_t&, key_type& and etc */
+template <typename EndpointData_T>
+template <typename... Args, typename>
+std::array<std::pair<typename Router<EndpointData_T>::iterator, bool>, sizeof... (Args) / 2>
+Router<EndpointData_T>::InsertSiblings(
+	const key_type& commonPath, const Args&... args)
+{
+	/* Args == const key_type&, const EndpointData_t&, key_type& and etc */
 
-// , std::enable_if_t<
-// 			metaUtils::SelectionOp<
-// 				InsertionFusion, Args...>::value(std::make_index_sequence<sizeof... Args>{})
-// 		>
-// 	UTREE_ASSERT(UrlUtils::CheckUrlCorrectness(commonPath), "Invalid url path!");
+	static_assert(metaUtils::
+		SelectionOp<InsertionFusion, Args...>::
+			value(std::make_index_sequence<sizeof... Args>{}, )>, "Invalid args!");
+	UTREE_ASSERT(UrlUtils::CheckUrlCorrectness(commonPath), "Invalid url path!");
 
-// 	std::array<std::pair<const key_type*, const EndpointData_T*>> pack;
+	std::array<std::pair<const key_type*, const EndpointData_T*>,
+		sizeof... (Args) / 2> pack;
 	
-// 	/* fill array */
-// 	PlacementMakePair(pack, 0, std::addressof(args)...);
+	/* fill array */
+	PlacementMakePair(pack, 0, std::addressof(args)...);
 
-// 	std::array<std::pair<iterator, bool>, sizeof... (Args) / 2> arrIterAndIsInserted;
+	std::array<std::pair<iterator, bool>, sizeof... (Args) / 2> arrIterAndIsInserted;
 	
-// 	// check all have same parent route:
-// 	// this parent route is empty or end with `/'
-// 	// and last route must not have `/'
-// 	for (std::size_t i = 0; i < sizeof ... (Args) / 2; i = i + 2)
-// 	{
-		
-// 		/* optimization needed 
-// 			possible to check all urls in time!
-// 		*/
-// 		const key_type& url = *pack[i]; // not allowed!
-// 		UTREE_ASSERT(UrlUtils::CheckUrlCorrectness(url) && 
-// 			(url.find('/') == std::char_traits<CharT>::npos), "Invalid url path!");
-// 	}
+	// check all have same parent route:
+	// this parent route is empty or end with `/'
+	// and last route must not have `/'
+	for (std::size_t i = 0; i < sizeof ... (Args) / 2; i = i + 2)
+	{
+		/* optimization needed 
+			possible to check all urls in time!
+		*/
+		const key_type& url = *pack[i]; // not allowed!
+		// UTREE_ASSERT(UrlUtils::CheckUrlCorrectness)
+		UTREE_ASSERT(UrlUtils::CheckUrlCorrectness(url) && 
+			(url.count('/') == 1), "Invalid url path!");
+	}
 
-// 	/* go to the parent */
-// 	auto& [parent, isInserted] = insert_default_child(m_router, commonPath);
+	/* go to the parent */
+	auto& [parent, isInserted] = insert_default_child(m_router, commonPath);
 
-// 	if (isInserted)
-// 	{
-// 		/* we do not need to check existing. Node is a newbie */
-// 		for (std::size_t i = 0; i < sizeof... (Args); i = i + 2)
-// 		{
-// 			arrIterAndIsInserted[i] = {parent.put_child(*pack[i], *pack[i + 1]), true};
-// 		}
-// 	} else 
-// 	{
-// 		/* this is one possible solution. Benchmark needed! */
-// 		const std::size_t numberOfChildren = 
-// 			std::distance(parent.begin(), parent.cend());
-
-		
-// 		constexpr std::size_t magicNumber = 15;
-// 		if (numberOfChildren < magicNumber)
-// 		{
-// 			/* O(N^2) */
-// 			std::for_each(parent.begin(), parent.cend())
-// 		} else 
-// 		{
-// 			/* std::unordered_map */
-// 		}
+	if (isInserted)
+	{
+		/* we do not need to check existing. Node is a newbie */
+		for (std::size_t i = 0; i < sizeof... (Args); i = i + 2)
+		{
+			arrIterAndIsInserted[i] = {parent.put_child(*pack[i], *pack[i + 1]), true};
+		}
+	} else 
+	{
+		/* this is one possible solution. Benchmark needed! */
+		const std::size_t numberOfChildren = 
+			std::distance(parent.begin(), parent.cend());
 
 		
-// 		for (std::size_t i = 0; i < sizeof... (Args); ++i)
-// 		{
+		constexpr std::size_t magicNumber = 15;
+		if (numberOfChildren < magicNumber)
+		{
+			/* O(N^2) */
+			std::for_each(parent.begin(), parent.cend())
+		} else 
+		{
+			/* std::unordered_map */
+		}
 
-// 		}
-// 	}
+		
+		for (std::size_t i = 0; i < sizeof... (Args); ++i)
+		{
+
+		}
+	}
 
 
-// 	return allDataArr;
-// }
+	return allDataArr;
+}
 
 
 // template <typename EndpointData_T>

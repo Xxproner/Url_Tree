@@ -385,11 +385,11 @@ public:
 		const char* realm = def_realm);
 
 
-	std::pair<iterator, bool> InsertRoute_hint(
-			const key_type& url,
-			const EndpointData_T& value,
-			const char* realm /*= def_realm*/,
-			const_iterator hint);
+	// std::pair<iterator, bool> InsertRoute_hint(
+	// 		const key_type& url,
+	// 		const EndpointData_T& value,
+	// 		const char* realm /*= def_realm*/,
+	// 		const_iterator hint);
 
 
 	iterator FindRoute(const key_type& urlPath) /*noexcept*/;
@@ -404,49 +404,10 @@ public:
 	// iterator FindRouteOrNearestParent(const key_type& urlPath, std::nothrow_t) noexcept;
 
 
-
-	// children should be sorted by key_type
-
-	// if move_constructible and
-	// move_assignable
-	// not needed cause of property_tree 
-	// does not care move semantic
-	// struct MveInsertionPair
-	// {
-	// 	MveInsertionPair(const std::string& url, 
-	// 		EndpointData_T&& data);
-
-	// 	const std::string& m_url;
-	// 	EndpointData_T&& m_data;
-	// };
-
-
 	/* extremely hard */
-	template <typename... Args>
-	std::array<std::pair<iterator, bool>, sizeof... (Args)>
-	InsertAIT(Args&&... args);
-
-
-
-	template <typename T, std::size_t>
-	struct InsertionFusion;
-
-
-
-	template <std::size_t N>
-	struct InsertionFusion<key_type, N> : std::conditional<metaUtils::is_even<N>::value, 
-		std::true_type, std::false_type>
-	{
-		
-	};
-
-
-	template <std::size_t N>
-	struct InsertionFusion<EndpointData_T, N> : std::conditional<!metaUtils::is_even<N>::value,
-		std::true_type, std::false_type>
-	{
-
-	};
+	// template <typename... Args>
+	// std::array<std::pair<iterator, bool>, sizeof... (Args)>
+	// InsertAIT(Args&&... args);
 
 
 
@@ -466,6 +427,26 @@ public:
 
 	const_LNRIterator cend();
 private:
+
+	template <typename T, std::size_t>
+	struct InsertionFusion;
+
+
+	template <std::size_t N>
+	struct InsertionFusion<key_type, N> : std::conditional<metaUtils::is_even<N>::value, 
+		std::true_type, std::false_type>
+	{
+		
+	};
+
+
+	template <std::size_t N>
+	struct InsertionFusion<EndpointData_T, N> : std::conditional<!metaUtils::is_even<N>::value,
+		std::true_type, std::false_type>
+	{
+
+	};
+
 
 	static std::pair<Router_T&, bool>
 	InsertChild(
