@@ -107,14 +107,25 @@ Router<EndpointData_T>::Router(
 
 
 
+// compiler demands this explicit implementation
 template <typename EndpointData_T>
 Router<EndpointData_T>::Node_T::Node_T()
 	: m_endpointData(EndpointData_T{})
 	, m_realm(def_realm)
 	, m_ptrParent(nullptr)
 {
-	// nothing
-	// why this contructed?
+	/* nothing */
+}
+
+
+
+template <typename EndpointData_T>
+Router<EndpointData_T>::Node_T::Node_T(Router_T* const ptrParent)
+	: m_endpointData(EndpointData_T{})
+	, m_realm(nullptr)
+	, m_ptrParent(ptrParent)
+{
+	/* nothing */
 }
 
 
@@ -126,7 +137,7 @@ Router<EndpointData_T>::Node_T::Node_T(
 	, m_realm(realm)
 	, m_ptrParent(ptrParent)
 {
-	// nothing
+	/* nothing */
 }
 
 
@@ -540,8 +551,7 @@ Router<EndpointData_T>::operator[](
 {
 	UTREE_ASSERT (UrlUtils::CheckUrlCorrectness(url), "Invalid url path!");
 
-	return AddChild(m_router, url, 
-		Router_T{Node_T{}});
+	return InsertLazyDefaultChild(m_router, url).first.data();
 };
 
 
@@ -959,64 +969,71 @@ Router<EndpointData_T>::FindCommonPath(
 /**
  * @brief Insert the node at the given path. Create any missing parents. 
  * If there already is a node at the path, nothing. */
-// template <typename EndpointData_T>
-// std::pair<typename Router<EndpointData_T>::Router_T&, bool>
-// Router<EndpointData_T>::insert_child(
-// 	Router_T& router,
-// 	const path_type& path, const EndpointData_T& data) 
-// {
-// 	/* this router type */
-// 	auto iter = InsertRoute(path, data)
-// 	return {iter.first.m_nativeIter.second, iter.second};
-// }
+template <typename EndpointData_T>
+std::pair<typename Router<EndpointData_T>::Router_T&, bool>
+Router<EndpointData_T>::InsertChild(
+	Router_T& router,
+	const key_type& path, 
+	const EndpointData_T& data)
+{
+	/* this router type */
+	auto iter = InsertRoute(path, data);
+	return std::make_pair(iter.first.m_nativeIter.second, iter.second);
+}
 
 
 /**
- * @brief Insert the default node at the given path. Create any missing parents.
- * If there already is a node at the path, nothing. */
-// template <typename EndpointData_T>
-// std::pair<typename Router<EndpointData_T>::Router_T&, bool>
-// Router<EndpointData_T>::insert_default_child(
-// 	Router_T& router,
-// 	const key_type& path)
-// {
-// 	/**
-// 	 * REPLACE: REPLACE NODE
-// 	 * NOTHING: NOTHING
-// 	 * */
-// 	bool isInserted = false;
-// 	UTREE_ASSERT(UrlUtils::CheckUrlCorrectness(path), "Invalid url path!");
+ * @brief Insert the default node at the given path if
+ * child is not exists
+ * 
+ * @ret return pair of the child and bool indicated whether
+ * child was inserted
+ */
+template <typename EndpointData_T>
+std::pair<typename Router<EndpointData_T>::Router_T&, bool>
+Router<EndpointData_T>::InsertLazyDefaultChild(
+	Router_T& router,
+	const key_type& path)
+{
+	/**
+	 * REPLACE: REPLACE NODE
+	 * NOTHING: NOTHING
+	 * */
 
-// 	std::vector<std::string> urlPathPieces =
-// 		UrlUtils::SplitString(path);
+	bool isInserted = false;
+	std::vector<key_type> urlPathPieces =
+		UrlUtils::SplitString(path);
 
-// 	Router_T& parent = m_router;
+	Router_T* parent = std::addressof(router);
 
-// 	boost_optional child = parent.get_child_optional(urlPathPieces.front());
-// 	std::size_t index = 1;
-// 	while (child && index < urlPathPieces.size())
-// 	{
-// 		parent = child.get();
-// 		child = parent.get_child_optional(urlPathPieces[index++]);
-// 	}
+	boost::optional child = GetDirectChildOptional(
+		*parent, 
+		urlPathPieces.front());
+	std::size_t index = 1;
+	while (child && index < urlPathPieces.size())
+	{
+		parent = std::addressof(child.get());
+		child = GetDirectChildOptional(*parent, urlPathPieces[index++]);
+	}
 
-// 	if (!child)
-// 	{
-// 		/* insert default */
-// 		if (index < urlPathPieces.size())
-// 		{
-// 			while (index < urlPathPieces.size())
-// 			{
-// 				parent = parent.put_child(urlPathPieces[index++], 
-// 					Node_T(EndpointData_T{}, nullptr, std::addressof(parent)));
-// 			}
-			
-// 			isInserted = true;			
-// 		}
-// 	}
+	if (!child)
+	{
+		/* insert default */
+		Node_T defaultData{parent};
+		do
+		{
+			/* this is new born parent line
+				we do not need to check order 
+			*/
+			parent = std::addressof(
+				parent->add(urlPathPieces[index - 1], defaultData));
+		} while(index < urlPathPieces.size());
+		
+		isInserted = true;
+	}
 
-// 	return {parent, isInserted};
-// }
+	return {child.get(), isInserted};
+}
 
 // template <typename EndpointData_T>
 // const typename Router<EndpointData_T>::Router_T&

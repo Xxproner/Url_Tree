@@ -110,7 +110,8 @@ namespace metaUtils
 
 
 template <class EndpointData_T
-// ,typename Alloc = std::allocator<EndpointData_T>
+// , typename CharT = char, typename Traits = std::char_traits<CharT>
+// , typename Alloc = std::allocator<EndpointData_T>
 >
 class Router
 {
@@ -135,6 +136,7 @@ private:
 	// static_assert(std::is_same_v<decltype(std::declval<EndpointData_T>() != false), bool>, 
 	// 	"false initicates default initialization!");
 
+	// using key_type = std::basic_string<CharT, Traits>;
 	using key_type = std::string;
 
 	/* children sorted by descending order */
@@ -153,7 +155,10 @@ private:
 		Node_T();
 
 
-		Node_T(EndpointData_T, const char*, Router_T*);
+		Node_T(Router_T* parent);
+
+
+		Node_T(EndpointData_T data, const char* realm, Router_T* parent);
 
 
 		// why should I implement this
@@ -187,6 +192,7 @@ private:
 		Router_T* Parent() const;
 	
 		// ~Node_T() = default;
+
 
 		friend struct LNRIterator;
 		// parent ptr is stored in this only for fast iterating
@@ -454,30 +460,33 @@ public:
 
 
 
-	static std::pair<Router_T&, bool>
-	insert_child(Router& router, 
-		const key_type& path, const EndpointData_T& data);
-
-
-
-	static std::pair<Router_T&, bool>
-	insert_default_child(Router& router,
-		const key_type& path);
-
-
-
 	LNRIterator end();
 
 
 
 	const_LNRIterator cend();
 private:
+
+	static std::pair<Router_T&, bool>
+	InsertChild(
+		Router_T& router, 
+		const key_type& path,
+		const EndpointData_T& data);
+
+
+
+	static std::pair<Router_T&, bool>
+	InsertLazyDefaultChild(
+		Router_T& router,
+		const key_type& path);
+
+
+
 	LNRIterator begin();
 
 
 
 	const_LNRIterator cbegin();
-
 
 
 	template <typename... Args>

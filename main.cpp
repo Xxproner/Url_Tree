@@ -39,7 +39,6 @@ public:
 		Router<int> router("http", "localhost", 80);
 	
 		{
-			/* check order */
 			router.InsertRoute("13", 10, "realm");
 			router.InsertRoute("2", 10, "realm");
 			router.InsertRoute("22", 10, "realm");
@@ -59,6 +58,7 @@ public:
 
 int main(int argc, char const *argv[])
 {
+	/* check order of insertion values */
 	NativeTestClass::TestNodeOrder();
 
 	Router<int> router("http", "localhost", 80);
@@ -91,7 +91,8 @@ int main(int argc, char const *argv[])
 	
 
 	{
-		router.InsertRoute("news", 69); // 0 cause of prev insertion
+		/* operator[] */
+		router["news"].data() = 69;
 		auto foundIter = router.FindRouteOrNearestParent("news/non_exists_lang/last_notice");
 		assert(foundIter != router.end() && foundIter->data() == 69);
 
