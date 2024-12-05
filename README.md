@@ -21,7 +21,7 @@ Router meets the requirements of [Container](https://en.cppreference.com/w/cpp/n
 
 # Requirements
   - c++17 or earlier (we are on it)
-  - boost 1.83.0
+  - boost 1.83.0 (we are also on it)
 # Benchmark
 TODO:
 # Appendix
