@@ -1,6 +1,7 @@
 # Introdution
 This repo is a C++ implementation of URL tree (similar to [w3 library](https://www.w3.org/Library/src/HTUTree.html))
-It is possible to storage endpoint's arbitrary data in property_tree data structure (boost [basic_ptree](https://www.boost.org/doc/libs/1_86_0/doc/html/doxygen/classboost_1_1property__tree_1_1basic__ptree.html)). 
+It is possible to storage endpoint's arbitrary data in property_tree data structure ([boost::basic_ptree](https://www.boost.org/doc/libs/1_86_0/doc/html/doxygen/classboost_1_1property__tree_1_1basic__ptree.html)).
+Usefull header-one solution to organize web-site endpoints.
 # Interface.
 ```cpp
 template <typename EndpointData_T,
