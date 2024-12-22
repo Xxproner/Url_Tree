@@ -1,5 +1,5 @@
-#ifndef ROUTER_HPP
-#define ROUTER_HPP
+#ifndef _ROUTER_HPP_
+#define _ROUTER_HPP_
 
 #if defined URL_TREE_HEADER
 #	error "Url tree error!"
@@ -13,11 +13,8 @@
 #include <string_view>
 #include <iterator>
 
-
 #include <boost/optional.hpp>
-
 #include "boost/property_tree/ptree.hpp"
-#include "boost/property_tree/string_path.hpp"
 
 
 #if !defined(__GNUC__)
@@ -69,14 +66,9 @@ namespace metaUtils
 	using add_cref_t = typename add_cref<T>::type;
 
 
-	template <typename T, T N>
-	struct even_sequence;
 
-
-
-	template <typename T, T N>
-	struct odd_sequence;
-
+	template <typename T>
+	using ptr = std::add_pointer_t<T>;
 
 
 	template <std::size_t N>
@@ -93,33 +85,47 @@ namespace metaUtils
 	struct SelectionOp
 	{
 		using pack = std::tuple<Args...>;
-		
 
 		template <std::size_t... index>
-		static constexpr bool value(std::integer_sequence<std::size_t, index...> seq)
+		static constexpr bool value(std::integer_sequence<std::size_t, index...>)
 		{
-			std::conjunction<
+			return std::conjunction<
 				Unary_op<
 					typename std::tuple_element<index, pack>::type, index
 				>...>::value;
-				
-			return 0;
 		};
 	};
 }; // namespace metaUtils
 
 
+#if __cplusplus < 202002L
+namespace std
+{
+	template<class T>
+	struct remove_cvref
+	{
+	    using type = remove_cv_t<remove_reference_t<T>>;
+	};
+
+	template <class T>
+	using remove_cvref_t = typename remove_cvref<T>::type;
+
+}; // namespace std
+#endif // !__cplusplus > 202002L
+
+
 template <class EndpointData_T
-// , typename CharT = char, typename Traits = std::char_traits<CharT>
-// , typename Alloc = std::allocator<EndpointData_T>
->
+	, typename URLChar_T = char>
 class Router
 {
-	// EndpointData_T is comparable with bool to indicate whether initide or not
+	// EndpointData_T is comparable with bool to indicate whether initiate or not
 public:
 	struct LNRIterator; 
 private:
-	struct Node_T; // demand copy constructibled
+
+	using Self_T = Router<EndpointData_T, URLChar_T>;
+
+	struct Node_T; // demand copy constructable
 
 	constexpr static auto cpyCable = std::is_copy_constructible_v<EndpointData_T>;
 
@@ -127,8 +133,8 @@ private:
 
 	// think about void cause of deleting allocator<void> from c++17
 	static_assert(not std::is_same_v<EndpointData_T, void>, "void");
-	// static_assert(not std::is_pointer_v<EndpointData_T>, "ptr");
 	static_assert(not std::is_reference_v<EndpointData_T>, "ref");
+	// static_assert(not std::is_pointer_v<EndpointData_T>, "ptr");
 
 	// should take care data is inited or not! or optional 
 	static_assert(metaUtils::rule_of_3<EndpointData_T>::value, "rule of 3");
@@ -137,12 +143,13 @@ private:
 	// 	"false initicates default initialization!");
 
 	// using key_type = std::basic_string<CharT, Traits>;
-	using key_type = std::string;
+	using URLTraits = std::char_traits<URLChar_T>;
+	using key_type = std::basic_string<URLChar_T, URLTraits>;
 
 	/* children sorted by descending order */
 	using Router_T = pt::basic_ptree<key_type, Node_T>; // self_type
 
-	constexpr static const char* def_realm = nullptr;
+	constexpr static const URLChar_T* def_realm = nullptr;
 
 	struct Node_T
 	{
@@ -152,10 +159,7 @@ private:
 		const char* m_realm; // realm 
 
 
-		Node_T();
-
-
-		Node_T(Router_T* parent);
+		Node_T(Router_T* const parent = nullptr);
 
 
 		Node_T(EndpointData_T data, const char* realm, Router_T* parent);
@@ -245,12 +249,13 @@ public:
 	struct LNRIterator
 	{
 	private:
-		using room_type = Router<EndpointData_T>;
+		using room_type = Self_T;
 #if !__cplusplus > 202002L
 		using value_type = std::add_const_t<
 			typename room_type::value_type>; // removed in c++20
 #endif // !__cplusplus > 202002L
 	public:
+
 		using difference_type = typename NativeIter_T::difference_type;
 		// using reference = typename NativeIter_T::reference_type;
 		using reference = std::add_lvalue_reference_t<value_type>;
@@ -298,15 +303,15 @@ public:
 		bool operator==(LNRIterator other) const;
 
 
-		friend Router<EndpointData_T>;
+		friend Router<EndpointData_T, URLChar_T>;
 	};
 
 
 	struct const_LNRIterator
 	{
 	private:
-		using room_type = Router<EndpointData_T>;
-#if !__cplusplus > 202002L
+		using room_type = Self_T;
+#if __cplusplus < 202002L
 		using value_type = std::add_const_t<
 			typename room_type::value_type>; // removed in c++20
 #endif // !__cplusplus > 202002L
@@ -360,16 +365,15 @@ public:
 		bool operator==(const_LNRIterator other) const;
 
 
-		friend Router<EndpointData_T>;
+		friend Router<EndpointData_T, URLChar_T>;
 	};
 
 	using iterator = struct LNRIterator;
 	using const_iterator = struct const_LNRIterator;
 
 	
-	// for all that is convertible to std::string
-	template <typename T, typename U>
-	Router(const T& host, const U& scheme, uint16_t port = 80);
+	// for all that is convertible to key_type
+	Router(const key_type& host, const key_type& scheme, uint16_t port = 80);
 
 
 	reference
@@ -378,7 +382,6 @@ public:
 
 	
 	std::pair<iterator, bool>
-	// int
 	InsertRoute(
 		const key_type& url,
 		const EndpointData_T& value,
@@ -413,7 +416,7 @@ public:
 
 	template <typename... Args>
 	std::array<std::pair<iterator, bool>, sizeof... (Args) / 2>
-	InsertSiblings(const key_type& commonPath, const Args&... args);
+	InsertSiblings(const key_type& commonPath, Args&&... args);
 
 
 
@@ -432,19 +435,39 @@ private:
 	struct InsertionFusion;
 
 
+	// possible to move to .cpp
 	template <std::size_t N>
-	struct InsertionFusion<key_type, N> : std::conditional<metaUtils::is_even<N>::value, 
-		std::true_type, std::false_type>
+	struct InsertionFusion<key_type, N> 
 	{
-		
+		constexpr static auto value = metaUtils::is_even<N>::value;	
+	};
+
+
+	template <std::size_t S, std::size_t N>
+	struct InsertionFusion<URLChar_T[S], N>
+	{
+		constexpr static auto value = metaUtils::is_even<N>::value;
+	};
+
+
+	template <std::size_t S, std::size_t N>
+	struct InsertionFusion<const URLChar_T (&)[S], N>
+	{
+		constexpr static auto value = metaUtils::is_even<N>::value;
 	};
 
 
 	template <std::size_t N>
-	struct InsertionFusion<EndpointData_T, N> : std::conditional<!metaUtils::is_even<N>::value,
-		std::true_type, std::false_type>
+	struct InsertionFusion<metaUtils::ptr<URLChar_T>, N>
 	{
+		constexpr static auto value = metaUtils::is_even<N>::value;
+	};
 
+
+	template <std::size_t N>
+	struct InsertionFusion<EndpointData_T, N>
+	{
+		constexpr static auto value = !metaUtils::is_even<N>::value;
 	};
 
 
@@ -481,8 +504,8 @@ private:
 	#endif // defined(UNIT_NATIVE_TEST) 
 
 private:
-	std::string m_host; // standart allocator
-	std::string m_scheme;
+	key_type m_host; // standart allocator
+	key_type m_scheme;
 	uint16_t m_port;
 // public:
 	Router_T m_router;
@@ -490,4 +513,4 @@ private:
 
 #include "Router.inl"
 
-#endif // ROUTER_HPP
+#endif // _ROUTER_HPP_

@@ -48,31 +48,22 @@ public:
 		CheckUrlCorrectness(const CharT* url);
 
 
-	template <typename CharT, 
-		typename Traits = std::char_traits<CharT>, 
-		typename Alloc = std::allocator<CharT>>
-	static void 
-		EraseQueryParams(std::basic_string<CharT, Traits, Alloc>& url) noexcept;
+	// template <typename CharT, 
+	// 	typename Traits = std::char_traits<CharT>, 
+	// 	typename Alloc = std::allocator<CharT>>
+	// static void 
+	// 	EraseQueryParams(std::basic_string<CharT, Traits, Alloc>& url) noexcept;
 
 
-	/* template regex */
-	template <typename CharT, 
-		typename Traits = std::char_traits<CharT>
-	>
-	const static std::basic_regex<CharT, Traits> urlPathRegex;
 
-
-	/* not implemented yet! */
 	template <typename CharT>
 	constexpr static const CharT* GetUrlPathRegex();
-
-
-	template <>
-	constexpr static const char* GetUrlPathRegex();
-
-
-	template <>
-	constexpr static const wchar_t* GetUrlPathRegex();
+private:
+	/* template regex */
+	template <typename CharT,
+		typename Traits = std::regex_traits<CharT>
+	>
+	static std::basic_regex<CharT, Traits> urlPathRegex;
 };
 
 
@@ -83,6 +74,30 @@ const char* UrlUtils::GetUrlPathRegex()
 };
 
 
+
+#if !(__cplusplus < 202002L)
+template <>
+const char8_t* UrlUtils::GetUrlPathRegex()
+{
+	return u8"[^/#?]+(/[^/#?]+)*";
+}
+#endif // !__cplusplus > 202002L
+
+
+template <>
+const char16_t* UrlUtils::GetUrlPathRegex()
+{
+	return u"[^/#?]+(/[^/#?]+)*";
+}
+
+
+template <>
+const char32_t* UrlUtils::GetUrlPathRegex()
+{
+	return U"[^/#?]+(/[^/#?]+)*";
+}
+
+
 template <>
 const wchar_t* UrlUtils::GetUrlPathRegex()
 {
@@ -90,12 +105,12 @@ const wchar_t* UrlUtils::GetUrlPathRegex()
 };
 
 
-
 template <typename CharT, 
-	typename Traits = std::char_traits<CharT>
->
-const std::basic_regex<CharT, Traits> UrlUtils::urlPathRegex(
-	GetUrlPathRegex<CharT>());
+		typename Traits = std::char_traits<CharT>
+	>
+std::basic_regex<CharT, Traits> UrlUtils::urlPathRegex(
+	UrlUtils::GetUrlPathRegex<CharT>());
+
 
 
 template <typename CharT, 
@@ -140,7 +155,7 @@ std::vector<std::basic_string<CharT, Traits, Alloc>>
 	UrlUtils::SplitString(
 		const std::basic_string<CharT, Traits, Alloc>& splitingString)
 {
-    constexpr CharT delimiter = static_cast<CharT, Traits, Alloc>('/');
+    constexpr CharT delimiter = static_cast<CharT>('/');
 	auto numTokens = std::count(splitingString.cbegin(),
 		splitingString.cend(), '/') + 1;
 
@@ -171,9 +186,9 @@ template <typename CharT,
 bool UrlUtils::CheckUrlCorrectness(
 	std::basic_string_view<CharT, Traits> urlRawPath)
 {
-	std::basic_match<CharT, Traits> ignoring;
+	std::match_results<const CharT*> ignoring;
 	return std::regex_match(urlRawPath.data(), urlRawPath.data() + 
-		urlRawPath.length(), ignoring, urlPathRegex);
+		urlRawPath.length(), ignoring, urlPathRegex<CharT>);
 };
 
 
@@ -197,28 +212,28 @@ bool UrlUtils::CheckUrlCorrectness(
 };
 
 
-template <typename CharT, 
-	typename Traits,
-	typename Alloc>
-void UrlUtils::EraseQueryParams(
-	std::string<CharT, Traits, Alloc>& url) noexcept
-{
-	std::size_t query_pm_spec_symbol_pos = url.find(static_cast<CharT>('?'));
+// template <typename CharT, 
+// 	typename Traits,
+// 	typename Alloc>
+// void UrlUtils::EraseQueryParams(
+// 	std::basic_string<CharT, Traits, Alloc>& url) noexcept
+// {
+// 	std::size_t query_pm_spec_symbol_pos = url.find(static_cast<CharT>('?'));
 
-	if (query_pm_spec_symbol_pos != std::string::npos)
-	{
-		url.erase(query_pm_spec_symbol_pos);
-	}
-}
+// 	if (query_pm_spec_symbol_pos != std::string::npos)
+// 	{
+// 		url.erase(query_pm_spec_symbol_pos);
+// 	}
+// }
+
 // ========================================================
 // ========================================================
 // ========================================================
 
 
-template <typename EndpointData_T>
-template <typename T, typename U>
-Router<EndpointData_T>::Router(
-	const T& host, const U& scheme, uint16_t port)
+template <typename EndpointData_T, typename URLChar_T>
+Router<EndpointData_T, URLChar_T>::Router(
+	const key_type& host, const key_type& scheme, uint16_t port)
 	: m_host(host)
 	, m_scheme(scheme)
 	, m_port(static_cast<uint16_t>(port))
@@ -230,20 +245,9 @@ Router<EndpointData_T>::Router(
 
 
 
-// compiler demands this explicit implementation
-template <typename EndpointData_T>
-Router<EndpointData_T>::Node_T::Node_T()
-	: m_endpointData(EndpointData_T{})
-	, m_realm(def_realm)
-	, m_ptrParent(nullptr)
-{
-	/* nothing */
-}
 
-
-
-template <typename EndpointData_T>
-Router<EndpointData_T>::Node_T::Node_T(Router_T* const ptrParent)
+template <typename EndpointData_T, typename URLChar_T>
+Router<EndpointData_T, URLChar_T>::Node_T::Node_T(Router_T* const ptrParent)
 	: m_endpointData(EndpointData_T{})
 	, m_realm(nullptr)
 	, m_ptrParent(ptrParent)
@@ -253,8 +257,8 @@ Router<EndpointData_T>::Node_T::Node_T(Router_T* const ptrParent)
 
 
 
-template <typename EndpointData_T>
-Router<EndpointData_T>::Node_T::Node_T(
+template <typename EndpointData_T, typename URLChar_T>
+Router<EndpointData_T, URLChar_T>::Node_T::Node_T(
 	EndpointData_T data, const char* realm, Router_T* const ptrParent)
 	: m_endpointData(data)
 	, m_realm(realm)
@@ -265,8 +269,8 @@ Router<EndpointData_T>::Node_T::Node_T(
 
 
 
-template <typename EndpointData_T>
-Router<EndpointData_T>::Node_T::Node_T(
+template <typename EndpointData_T, typename URLChar_T>
+Router<EndpointData_T, URLChar_T>::Node_T::Node_T(
 	const Node_T& otherNode)
 	: m_endpointData(otherNode.m_endpointData)
 	, m_realm(otherNode.m_realm)
@@ -276,8 +280,8 @@ Router<EndpointData_T>::Node_T::Node_T(
 };
 
 
-// template <typename EndpointData_T>
-// Router<EndpointData_T>::Node_T::Node_T(
+// template <typename EndpointData_T, typename URLChar_T>
+// Router<EndpointData_T, URLChar_T>::Node_T::Node_T(
 // 	Node_T&& otherNode)
 // 	: m_endpointData(std::move(otherNode.m_endpointData))
 // 	, m_realm(otherNode.m_realm)
@@ -290,9 +294,9 @@ Router<EndpointData_T>::Node_T::Node_T(
 
 
 
-template <typename EndpointData_T>
-typename Router<EndpointData_T>::Node_T&
-Router<EndpointData_T>::Node_T::operator=(
+template <typename EndpointData_T, typename URLChar_T>
+typename Router<EndpointData_T, URLChar_T>::Node_T&
+Router<EndpointData_T, URLChar_T>::Node_T::operator=(
 	const Node_T& otherNode)
 {
 	if (this != &otherNode)
@@ -308,9 +312,9 @@ Router<EndpointData_T>::Node_T::operator=(
 
 
 
-// template <typename EndpointData_T>
-// typename Router<EndpointData_T>::Node_T&
-// Router<EndpointData_T>::Node_T::operator=(
+// template <typename EndpointData_T, typename URLChar_T>
+// typename Router<EndpointData_T, URLChar_T>::Node_T&
+// Router<EndpointData_T, URLChar_T>::Node_T::operator=(
 // 	Node_T&& otherNode)
 // {
 // 	m_endpointData = std::move(m_endpointData);
@@ -321,18 +325,18 @@ Router<EndpointData_T>::Node_T::operator=(
 // };
 
 
-template <typename EndpointData_T>
-typename Router<EndpointData_T>::Router_T*
-Router<EndpointData_T>::Node_T::Parent() const
+template <typename EndpointData_T, typename URLChar_T>
+typename Router<EndpointData_T, URLChar_T>::Router_T*
+Router<EndpointData_T, URLChar_T>::Node_T::Parent() const
 {
 	return m_ptrParent;	
 };
 
 
 
-template <typename EndpointData_T>
-typename Router<EndpointData_T>::Router_T*
-Router<EndpointData_T>::Node_T::Grandparent() const
+template <typename EndpointData_T, typename URLChar_T>
+typename Router<EndpointData_T, URLChar_T>::Router_T*
+Router<EndpointData_T, URLChar_T>::Node_T::Grandparent() const
 {
 	// data() return not valid ref
 	Router_T* parent = Parent(); // for debug
@@ -342,11 +346,11 @@ Router<EndpointData_T>::Node_T::Grandparent() const
 
 
 
-// template <typename EndpointData_T>
-// Router<EndpointData_T>::Node_T::Node_T(
+// template <typename EndpointData_T, typename URLChar_T>
+// Router<EndpointData_T, URLChar_T>::Node_T::Node_T(
 // 	EndpointData_T data
 // 	, std::string realm
-// 	, typename Router<EndpointData_T>::Router_T* const ptrParent)
+// 	, typename Router<EndpointData_T, URLChar_T>::Router_T* const ptrParent)
 	
 // 	: m_endpointData(std::move(data))
 // 	, m_realm(std::move(realm))
@@ -381,9 +385,9 @@ static std::string TrimString(
 
 
 
-// template <class EndpointData_T>
-// Router<EndpointData_T>::LNRIterator::LNRIterator(
-// 	Router<EndpointData_T>::LNRIterator::reference node)
+// template <typename EndpointData_T, typename URLChar_T>
+// Router<EndpointData_T, URLChar_T>::LNRIterator::LNRIterator(
+// 	Router<EndpointData_T, URLChar_T>::LNRIterator::reference node)
 // 	: m_nativeIter(GetIterFromThis(std::addressof(node)))
 // {
 //	// nothing
@@ -394,9 +398,9 @@ static std::string TrimString(
 // =============== struct LNRIterator ==============
 // =================================================
 
-template <class EndpointData_T>
-Router<EndpointData_T>::LNRIterator::LNRIterator(
-	Router<EndpointData_T>::NativeIter_T nativeIter)
+template <typename EndpointData_T, typename URLChar_T>
+Router<EndpointData_T, URLChar_T>::LNRIterator::LNRIterator(
+	Router<EndpointData_T, URLChar_T>::NativeIter_T nativeIter)
 	: m_nativeIter(nativeIter)
 {
 	// nothing
@@ -404,10 +408,10 @@ Router<EndpointData_T>::LNRIterator::LNRIterator(
 
 
 
-template <class EndpointData_T>
-typename Router<EndpointData_T>::NativeIter_T
-Router<EndpointData_T>::LNRIterator::GetIterFromThis(
-	Router<EndpointData_T>::Router_T* node) const
+template <typename EndpointData_T, typename URLChar_T>
+typename Router<EndpointData_T, URLChar_T>::NativeIter_T
+Router<EndpointData_T, URLChar_T>::LNRIterator::GetIterFromThis(
+	Router<EndpointData_T, URLChar_T>::Router_T* node) const
 {
 	Router_T* parentOfNode = node->data().Parent();
 	NativeIter_T nativeIterSameDeep = parentOfNode->begin();
@@ -422,9 +426,9 @@ Router<EndpointData_T>::LNRIterator::GetIterFromThis(
 
 
 
-template <class EndpointData_T>
-Router<EndpointData_T>::LNRIterator::LNRIterator(
-	Router<EndpointData_T>::Router_T& node)
+template <typename EndpointData_T, typename URLChar_T>
+Router<EndpointData_T, URLChar_T>::LNRIterator::LNRIterator(
+	Router<EndpointData_T, URLChar_T>::Router_T& node)
 	: m_nativeIter(GetIterFromThis(std::addressof(node)))
 {
 	// nothing
@@ -432,9 +436,9 @@ Router<EndpointData_T>::LNRIterator::LNRIterator(
 
 
 
-template <class EndpointData_T>
-Router<EndpointData_T>::LNRIterator::LNRIterator(
-	Router<EndpointData_T>::Router_T* node)
+template <typename EndpointData_T, typename URLChar_T>
+Router<EndpointData_T, URLChar_T>::LNRIterator::LNRIterator(
+	Router<EndpointData_T, URLChar_T>::Router_T* node)
 	: m_nativeIter(GetIterFromThis(node))
 {
 	// nothing
@@ -442,9 +446,9 @@ Router<EndpointData_T>::LNRIterator::LNRIterator(
 
 
 
-template <class EndpointData_T>
-typename Router<EndpointData_T>::LNRIterator&
-Router<EndpointData_T>::LNRIterator::operator++()
+template <typename EndpointData_T, typename URLChar_T>
+typename Router<EndpointData_T, URLChar_T>::LNRIterator&
+Router<EndpointData_T, URLChar_T>::LNRIterator::operator++()
 {
 	m_nativeIter = end();
 	return *this;
@@ -452,9 +456,9 @@ Router<EndpointData_T>::LNRIterator::operator++()
 
 
 
-template <class EndpointData_T>
-typename Router<EndpointData_T>::LNRIterator
-Router<EndpointData_T>::LNRIterator::operator++(int)
+template <typename EndpointData_T, typename URLChar_T>
+typename Router<EndpointData_T, URLChar_T>::LNRIterator
+Router<EndpointData_T, URLChar_T>::LNRIterator::operator++(int)
 {
 	NativeIter_T retIter = m_nativeIter;
 	m_nativeIter = end();
@@ -464,45 +468,45 @@ Router<EndpointData_T>::LNRIterator::operator++(int)
 
 
 
-template <class EndpointData_T>
-typename Router<EndpointData_T>::LNRIterator::reference
-Router<EndpointData_T>::LNRIterator::Data() const
+template <typename EndpointData_T, typename URLChar_T>
+typename Router<EndpointData_T, URLChar_T>::LNRIterator::reference
+Router<EndpointData_T, URLChar_T>::LNRIterator::Data() const
 {
 	return m_nativeIter->second.data();
 };
 
 
 
-template <class EndpointData_T>
-typename Router<EndpointData_T>::LNRIterator::reference
-Router<EndpointData_T>::LNRIterator::operator*() const
+template <typename EndpointData_T, typename URLChar_T>
+typename Router<EndpointData_T, URLChar_T>::LNRIterator::reference
+Router<EndpointData_T, URLChar_T>::LNRIterator::operator*() const
 {
 	return this->Data();
 };
 
 
 
-template <class EndpointData_T>
-typename Router<EndpointData_T>::LNRIterator::pointer
-Router<EndpointData_T>::LNRIterator::operator->() const
+template <typename EndpointData_T, typename URLChar_T>
+typename Router<EndpointData_T, URLChar_T>::LNRIterator::pointer
+Router<EndpointData_T, URLChar_T>::LNRIterator::operator->() const
 {
 	return std::addressof(Data());
 };
 
 
 
-template <class EndpointData_T>
+template <typename EndpointData_T, typename URLChar_T>
 bool
-Router<EndpointData_T>::LNRIterator::operator==(LNRIterator otherIter) const
+Router<EndpointData_T, URLChar_T>::LNRIterator::operator==(LNRIterator otherIter) const
 {
 	return m_nativeIter == otherIter.m_nativeIter;
 };
 
 
 
-template <class EndpointData_T>
+template <typename EndpointData_T, typename URLChar_T>
 bool
-Router<EndpointData_T>::LNRIterator::operator!=(LNRIterator otherIter) const
+Router<EndpointData_T, URLChar_T>::LNRIterator::operator!=(LNRIterator otherIter) const
 {
 	return not this->operator==(otherIter);
 };
@@ -513,18 +517,18 @@ Router<EndpointData_T>::LNRIterator::operator!=(LNRIterator otherIter) const
 // =================================================
 
 
-template <class EndpointData_T>
-typename Router<EndpointData_T>::iterator
-Router<EndpointData_T>::begin()
+template <typename EndpointData_T, typename URLChar_T>
+typename Router<EndpointData_T, URLChar_T>::iterator
+Router<EndpointData_T, URLChar_T>::begin()
 {
 	return iterator(m_router.begin());
 };
 
 
 
-template <class EndpointData_T>
-typename Router<EndpointData_T>::iterator
-Router<EndpointData_T>::end()
+template <typename EndpointData_T, typename URLChar_T>
+typename Router<EndpointData_T, URLChar_T>::iterator
+Router<EndpointData_T, URLChar_T>::end()
 {
 	return iterator(m_router.end());
 };
@@ -535,9 +539,9 @@ Router<EndpointData_T>::end()
 // =========== struct const_LNRIterator ============
 // =================================================
 
-template <class EndpointData_T>
-Router<EndpointData_T>::const_LNRIterator::const_LNRIterator(
-	Router<EndpointData_T>::ConstNativeIter_T constNativeIter)
+template <typename EndpointData_T, typename URLChar_T>
+Router<EndpointData_T, URLChar_T>::const_LNRIterator::const_LNRIterator(
+	Router<EndpointData_T, URLChar_T>::ConstNativeIter_T constNativeIter)
 	: m_constNativeIter(constNativeIter)
 {
 	// nothing
@@ -545,10 +549,10 @@ Router<EndpointData_T>::const_LNRIterator::const_LNRIterator(
 
 
 
-template <class EndpointData_T>
-typename Router<EndpointData_T>::ConstNativeIter_T
-Router<EndpointData_T>::const_LNRIterator::GetIterFromThis(
-	const Router<EndpointData_T>::Router_T* node) const
+template <typename EndpointData_T, typename URLChar_T>
+typename Router<EndpointData_T, URLChar_T>::ConstNativeIter_T
+Router<EndpointData_T, URLChar_T>::const_LNRIterator::GetIterFromThis(
+	const Router<EndpointData_T, URLChar_T>::Router_T* node) const
 {
 	const Router_T* parentOfNode = node->data().Parent();
 
@@ -560,9 +564,9 @@ Router<EndpointData_T>::const_LNRIterator::GetIterFromThis(
 
 
 
-template <class EndpointData_T>
-Router<EndpointData_T>::const_LNRIterator::const_LNRIterator(
-	const Router<EndpointData_T>::Router_T& node)
+template <typename EndpointData_T, typename URLChar_T>
+Router<EndpointData_T, URLChar_T>::const_LNRIterator::const_LNRIterator(
+	const Router<EndpointData_T, URLChar_T>::Router_T& node)
 	: m_constNativeIter(GetIterFromThis(std::addressof(node)))
 {
 	// nothing
@@ -570,9 +574,9 @@ Router<EndpointData_T>::const_LNRIterator::const_LNRIterator(
 
 
 
-template <class EndpointData_T>
-Router<EndpointData_T>::const_LNRIterator::const_LNRIterator(
-	const Router<EndpointData_T>::Router_T* node)
+template <typename EndpointData_T, typename URLChar_T>
+Router<EndpointData_T, URLChar_T>::const_LNRIterator::const_LNRIterator(
+	const Router<EndpointData_T, URLChar_T>::Router_T* node)
 	: m_constNativeIter(GetIterFromThis(node))
 {
 	// nothing
@@ -580,9 +584,9 @@ Router<EndpointData_T>::const_LNRIterator::const_LNRIterator(
 
 
 
-template <class EndpointData_T>
-typename Router<EndpointData_T>::const_iterator&
-Router<EndpointData_T>::const_LNRIterator::operator++()
+template <typename EndpointData_T, typename URLChar_T>
+typename Router<EndpointData_T, URLChar_T>::const_iterator&
+Router<EndpointData_T, URLChar_T>::const_LNRIterator::operator++()
 {
 	m_constNativeIter = end();
 	return *this;
@@ -590,9 +594,9 @@ Router<EndpointData_T>::const_LNRIterator::operator++()
 
 
 
-template <class EndpointData_T>
-typename Router<EndpointData_T>::const_iterator
-Router<EndpointData_T>::const_LNRIterator::operator++(int)
+template <typename EndpointData_T, typename URLChar_T>
+typename Router<EndpointData_T, URLChar_T>::const_iterator
+Router<EndpointData_T, URLChar_T>::const_LNRIterator::operator++(int)
 {
 	ConstNativeIter_T retIter = m_constNativeIter;
 	m_constNativeIter = end();
@@ -602,45 +606,45 @@ Router<EndpointData_T>::const_LNRIterator::operator++(int)
 
 
 
-template <class EndpointData_T>
-typename Router<EndpointData_T>::const_LNRIterator::reference
-Router<EndpointData_T>::const_LNRIterator::Data() const
+template <typename EndpointData_T, typename URLChar_T>
+typename Router<EndpointData_T, URLChar_T>::const_LNRIterator::reference
+Router<EndpointData_T, URLChar_T>::const_LNRIterator::Data() const
 {
 	return m_constNativeIter->second.data();
 };
 
 
 
-template <class EndpointData_T>
-typename Router<EndpointData_T>::const_LNRIterator::reference
-Router<EndpointData_T>::const_LNRIterator::operator*() const
+template <typename EndpointData_T, typename URLChar_T>
+typename Router<EndpointData_T, URLChar_T>::const_LNRIterator::reference
+Router<EndpointData_T, URLChar_T>::const_LNRIterator::operator*() const
 {
 	return this->Data();
 };
 
 
 
-template <class EndpointData_T>
-typename Router<EndpointData_T>::const_LNRIterator::pointer
-Router<EndpointData_T>::const_LNRIterator::operator->() const
+template <typename EndpointData_T, typename URLChar_T>
+typename Router<EndpointData_T, URLChar_T>::const_LNRIterator::pointer
+Router<EndpointData_T, URLChar_T>::const_LNRIterator::operator->() const
 {
 	return std::addressof(Data());
 };
 
 
 
-template <class EndpointData_T>
+template <typename EndpointData_T, typename URLChar_T>
 bool
-Router<EndpointData_T>::const_LNRIterator::operator==(const_LNRIterator otherIter) const
+Router<EndpointData_T, URLChar_T>::const_LNRIterator::operator==(const_LNRIterator otherIter) const
 {
 	return m_constNativeIter == otherIter.m_constNativeIter;
 };
 
 
 
-template <class EndpointData_T>
+template <typename EndpointData_T, typename URLChar_T>
 bool
-Router<EndpointData_T>::const_LNRIterator::operator!=(const_LNRIterator otherIter) const
+Router<EndpointData_T, URLChar_T>::const_LNRIterator::operator!=(const_LNRIterator otherIter) const
 {
 	return not this->operator==(otherIter);
 };
@@ -649,27 +653,27 @@ Router<EndpointData_T>::const_LNRIterator::operator!=(const_LNRIterator otherIte
 // ========= end struct const_LNRIterator ==========
 // =================================================
 
-template <class EndpointData_T>
-typename Router<EndpointData_T>::const_iterator
-Router<EndpointData_T>::cbegin()
+template <typename EndpointData_T, typename URLChar_T>
+typename Router<EndpointData_T, URLChar_T>::const_iterator
+Router<EndpointData_T, URLChar_T>::cbegin()
 {
 	return const_iterator(m_router.begin());
 };
 
 
 
-template <class EndpointData_T>
-typename Router<EndpointData_T>::const_iterator
-Router<EndpointData_T>::cend()
+template <typename EndpointData_T, typename URLChar_T>
+typename Router<EndpointData_T, URLChar_T>::const_iterator
+Router<EndpointData_T, URLChar_T>::cend()
 {
 	return const_iterator(m_router.end());
 };
 
 
 
-template <typename EndpointData_T>
-typename Router<EndpointData_T>::reference
-Router<EndpointData_T>::operator[](
+template <typename EndpointData_T, typename URLChar_T>
+typename Router<EndpointData_T, URLChar_T>::reference
+Router<EndpointData_T, URLChar_T>::operator[](
 	const key_type& url)
 {
 	UTREE_ASSERT (UrlUtils::CheckUrlCorrectness(url), "Invalid url path!");
@@ -685,10 +689,10 @@ Router<EndpointData_T>::operator[](
  * 
  * @param key is key of direct child. 
  * */
-template <typename EndpointData_T>
-boost::optional<typename Router<EndpointData_T>::Router_T&>
-// typename Router<EndpointData_T>::Router_T*
-Router<EndpointData_T>::GetDirectChildOptional(Router_T& parent, const key_type& key)
+template <typename EndpointData_T, typename URLChar_T>
+boost::optional<typename Router<EndpointData_T, URLChar_T>::Router_T&>
+// typename Router<EndpointData_T, URLChar_T>::Router_T*
+Router<EndpointData_T, URLChar_T>::GetDirectChildOptional(Router_T& parent, const key_type& key)
 {
 	using opt = boost::optional<Router_T&>;
 
@@ -715,9 +719,9 @@ Router<EndpointData_T>::GetDirectChildOptional(Router_T& parent, const key_type&
  * 
  * @param key is key of child. 
  * */
-template <typename EndpointData_T>
-boost::optional<typename Router<EndpointData_T>::Router_T&>
-Router<EndpointData_T>::GetChildOptional(Router_T& parent, const key_type& key)
+template <typename EndpointData_T, typename URLChar_T>
+boost::optional<typename Router<EndpointData_T, URLChar_T>::Router_T&>
+Router<EndpointData_T, URLChar_T>::GetChildOptional(Router_T& parent, const key_type& key)
 {
 	using opt = boost::optional<Router_T&>;
 
@@ -746,9 +750,9 @@ Router<EndpointData_T>::GetChildOptional(Router_T& parent, const key_type& key)
  * @param key is key of direct child.
  * @param child is child to put
  * */
-template <typename EndpointData_T>
-typename Router<EndpointData_T>::Router_T&
-Router<EndpointData_T>::PutDirectChild(Router_T& parent, 
+template <typename EndpointData_T, typename URLChar_T>
+typename Router<EndpointData_T, URLChar_T>::Router_T&
+Router<EndpointData_T, URLChar_T>::PutDirectChild(Router_T& parent, 
 	const key_type& key, const Router_T& child)
 {
 	bool found = false;
@@ -782,9 +786,9 @@ Router<EndpointData_T>::PutDirectChild(Router_T& parent,
  * @param key is key of direct child.
  * @param child is child to add
  * */
-template <typename EndpointData_T>
-typename Router<EndpointData_T>::Router_T&
-Router<EndpointData_T>::AddDirectChild(Router_T& parent, 
+template <typename EndpointData_T, typename URLChar_T>
+typename Router<EndpointData_T, URLChar_T>::Router_T&
+Router<EndpointData_T, URLChar_T>::AddDirectChild(Router_T& parent, 
 	const key_type& key, const Router_T& child)
 {
 	bool found = false;
@@ -810,10 +814,10 @@ Router<EndpointData_T>::AddDirectChild(Router_T& parent,
 
 
 
-template <typename EndpointData_T>
-std::pair<typename Router<EndpointData_T>::iterator, bool>
+template <typename EndpointData_T, typename URLChar_T>
+std::pair<typename Router<EndpointData_T, URLChar_T>::iterator, bool>
 // int
-Router<EndpointData_T>::InsertRoute(
+Router<EndpointData_T, URLChar_T>::InsertRoute(
 	const key_type& url
 	, const EndpointData_T& value
 	, const char* realm)
@@ -860,9 +864,9 @@ Router<EndpointData_T>::InsertRoute(
 
 
 // I am not sure that is appropriate
-// template <typename EndpointData_T>
-// std::pair<typename Router<EndpointData_T>::iterator, bool>
-// Router<EndpointData_T>::InsertRoute_hint(
+// template <typename EndpointData_T, typename URLChar_T>
+// std::pair<typename Router<EndpointData_T, URLChar_T>::iterator, bool>
+// Router<EndpointData_T, URLChar_T>::InsertRoute_hint(
 // 	const std::string& url
 // 	, const EndpointData_T& value
 // 	, const char* realm
@@ -884,18 +888,18 @@ Router<EndpointData_T>::InsertRoute(
 // };
 
 
-template <typename EndpointData_T>
+template <typename EndpointData_T, typename URLChar_T>
 void
-Router<EndpointData_T>::clear() noexcept
+Router<EndpointData_T, URLChar_T>::clear() noexcept
 {
 	m_router.clear();
 };
 
 
 
-template <typename EndpointData_T>
-typename Router<EndpointData_T>::iterator
-Router<EndpointData_T>::FindRoute(const key_type& url) /*noexcept*/
+template <typename EndpointData_T, typename URLChar_T>
+typename Router<EndpointData_T, URLChar_T>::iterator
+Router<EndpointData_T, URLChar_T>::FindRoute(const key_type& url) /*noexcept*/
 {
 	UTREE_ASSERT(UrlUtils::CheckUrlCorrectness(url), "Invalid url path!");
 
@@ -910,9 +914,9 @@ Router<EndpointData_T>::FindRoute(const key_type& url) /*noexcept*/
 
 
 
-// template <typename EndpointData_T>
-// typename Router<EndpointData_T>::iterator
-// Router<EndpointData_T>::FindRoute(const key_type& url, std::nothrow_t) noexcept
+// template <typename EndpointData_T, typename URLChar_T>
+// typename Router<EndpointData_T, URLChar_T>::iterator
+// Router<EndpointData_T, URLChar_T>::FindRoute(const key_type& url, std::nothrow_t) noexcept
 // {
 // 	UTREE_ASSERT(UrlUtils::CheckUrlCorrectness(url), "Invalid url path!");
 
@@ -927,9 +931,9 @@ Router<EndpointData_T>::FindRoute(const key_type& url) /*noexcept*/
 
 
 
-template <typename EndpointData_T>
-typename Router<EndpointData_T>::iterator
-Router<EndpointData_T>::FindRouteOrNearestParent(const key_type& urlPath) /*noexcept*/
+template <typename EndpointData_T, typename URLChar_T>
+typename Router<EndpointData_T, URLChar_T>::iterator
+Router<EndpointData_T, URLChar_T>::FindRouteOrNearestParent(const key_type& urlPath) /*noexcept*/
 {
 	UTREE_ASSERT(UrlUtils::CheckUrlCorrectness(urlPath), "Invalid url path!");
 	
@@ -962,9 +966,9 @@ Router<EndpointData_T>::FindRouteOrNearestParent(const key_type& urlPath) /*noex
 
 
 
-// template <typename EndpointData_T>
-// typename Router<EndpointData_T>::iterator
-// Router<EndpointData_T>::FindRouteOrNearestParent(const key_type& urlPath, std::nothrow_t) noexcept
+// template <typename EndpointData_T, typename URLChar_T>
+// typename Router<EndpointData_T, URLChar_T>::iterator
+// Router<EndpointData_T, URLChar_T>::FindRouteOrNearestParent(const key_type& urlPath, std::nothrow_t) noexcept
 // {
 // 	UTREE_ASSERT(UrlUtils::CheckUrlCorrectness(urlPath), "Invalid url path!")
 
@@ -987,9 +991,9 @@ Router<EndpointData_T>::FindRouteOrNearestParent(const key_type& urlPath) /*noex
 
 
 
-// template <typename EndpointData_T>
-// typename Router<EndpointData_T>::iterator
-// Router<EndpointData_T>::MveInsertionPair::MveInsertionPair(
+// template <typename EndpointData_T, typename URLChar_T>
+// typename Router<EndpointData_T, URLChar_T>::iterator
+// Router<EndpointData_T, URLChar_T>::MveInsertionPair::MveInsertionPair(
 // 	const std::string& url,
 // 	EndpointData_T&& data)
 // 	: m_url(url)
@@ -1000,10 +1004,10 @@ Router<EndpointData_T>::FindRouteOrNearestParent(const key_type& urlPath) /*noex
 
 
 // insert all-in-time
-// template <typename EndpointData_T>
+// template <typename EndpointData_T, typename URLChar_T>
 // template <typename... Args, typename U>
-// std::array<std::pair<typename Router<EndpointData_T>::iterator, bool>, sizeof... (Args)>
-// Router<EndpointData_T>::InsertAIT(Args&&... args)
+// std::array<std::pair<typename Router<EndpointData_T, URLChar_T>::iterator, bool>, sizeof... (Args)>
+// Router<EndpointData_T, URLChar_T>::InsertAIT(Args&&... args)
 // {
 // 	std::array<const CpyInsertionPair&, sizeof... (Args)> allDataArr {args...};
 
@@ -1046,10 +1050,10 @@ Router<EndpointData_T>::FindRouteOrNearestParent(const key_type& urlPath) /*noex
  * 
  * @return return the common path
  * */
-template <typename EndpointData_T>
+template <typename EndpointData_T, typename URLChar_T>
 template <typename... Args>
-typename Router<EndpointData_T>::key_type
-Router<EndpointData_T>::FindCommonPath(
+typename Router<EndpointData_T, URLChar_T>::key_type
+Router<EndpointData_T, URLChar_T>::FindCommonPath(
 	const key_type& url, 
 	const Args&... urls)
 {
@@ -1092,9 +1096,9 @@ Router<EndpointData_T>::FindCommonPath(
 /**
  * @brief Insert the node at the given path. Create any missing parents. 
  * If there already is a node at the path, nothing. */
-template <typename EndpointData_T>
-std::pair<typename Router<EndpointData_T>::Router_T&, bool>
-Router<EndpointData_T>::InsertChild(
+template <typename EndpointData_T, typename URLChar_T>
+std::pair<typename Router<EndpointData_T, URLChar_T>::Router_T&, bool>
+Router<EndpointData_T, URLChar_T>::InsertChild(
 	Router_T& router,
 	const key_type& path, 
 	const EndpointData_T& data)
@@ -1112,9 +1116,9 @@ Router<EndpointData_T>::InsertChild(
  * @ret return pair of the child and bool indicated whether
  * child was inserted
  */
-template <typename EndpointData_T>
-std::pair<typename Router<EndpointData_T>::Router_T&, bool>
-Router<EndpointData_T>::InsertLazyDefaultChild(
+template <typename EndpointData_T, typename URLChar_T>
+std::pair<typename Router<EndpointData_T, URLChar_T>::Router_T&, bool>
+Router<EndpointData_T, URLChar_T>::InsertLazyDefaultChild(
 	Router_T& router,
 	const key_type& path)
 {
@@ -1158,9 +1162,9 @@ Router<EndpointData_T>::InsertLazyDefaultChild(
 	return {child.get(), isInserted};
 }
 
-// template <typename EndpointData_T>
-// const typename Router<EndpointData_T>::Router_T&
-// Router<EndpointData_T>::insert_child(const path_type& path, 
+// template <typename EndpointData_T, typename URLChar_T>
+// const typename Router<EndpointData_T, URLChar_T>::Router_T&
+// Router<EndpointData_T, URLChar_T>::insert_child(const path_type& path, 
 // 	const EndpointData_T& data) const
 // {
 // 	/* this router type */
@@ -1168,40 +1172,63 @@ Router<EndpointData_T>::InsertLazyDefaultChild(
 // }
 
 
-template <typename Fs, typename Sd, std::size_t SIZE, typename... U>
-void PlacementMakePair(std::array<std::pair<const Fs&, const Sd&>, SIZE>& buf, 
-	std::size_t& offset, 
-	const Fs& first, const Fs& second,
-	std::size_t value, U&&... args)
+template <typename F, typename S, std::size_t SIZE,
+	typename F_translator, typename S_translator>
+class PackToArrayFolder 
 {
-	buf[offset] = std::make_pair(first, second); // <const char*, std::size_t>
-	++offset;
+public:
+	typedef std::array<std::pair<F, S>, SIZE> arrPair_T;
 
-	PlacementMakePair(buf, offset, std::forward<U>(args)...);
+	// difference between trivially and default
+	// default is passed but trivially not!
+	static_assert(std::is_default_constructible_v<arrPair_T>, "Invalid array type!"); 
+
+	// static_assert(std::is_invocable<F_translator>::value && std::is_invocable<S_translator>::value,
+	// 	"Invalid tranlators!");
+
+	// since c++17
+	// static_assert(std::is_same_v<std::invoke_result<F_translator>::type, F> && 
+	// 	std::is_same_v<std::invoke_result<S_translator>, S>, "Invalid tranlators!");
+
+	template <typename... Args>
+	std::array<std::pair<F,S>, SIZE> Fold(Args&&... args)
+	{
+		PlacementMakePair(0, std::forward<Args>(args)...);
+		return std::move(foldingArray);
+	};
+private:
+	template <typename T1, typename T2, typename... Args>
+	void PlacementMakePair(
+		std::size_t& offset,
+		T1&& first, T2&& second,
+		Args&&... args)
+	{
+		foldingArray[offset] = std::make_pair(F_translator{}->operator()(first), S_translator{}->operator()(second));
+		++offset;
+
+		PlacementMakePair(offset, std::forward<Args>(args)...);
+	};
+
+
+	template <typename T1, typename T2, typename... Args>
+	void PlacementMakePair(
+		std::size_t&& offset, 
+		T1&& first, T2&& second,
+		Args&&... args)
+	{
+		foldingArray[offset] = std::make_pair(F_translator{}->operator()(first), S_translator{}->operator()(second));
+		++offset;
+
+		PlacementMakePair(offset, std::forward<Args>(args)...);
+	};
+
+
+	void PlacementMakePair(
+		std::size_t&) { };
+
+	arrPair_T foldingArray;
 };
 
-
-
-template <typename Fs, typename Sd, std::size_t SIZE, typename... U>
-void PlacementMakePair(std::array<std::pair<const Fs&, const Sd&>, SIZE>& buf, 
-	std::size_t&& offset, 
-	const Fs& first, const Fs& second, 
-	std::size_t value, U&&... args)
-{
-	buf[offset] = std::make_pair(first, second);
-	++offset;
-
-	PlacementMakePair(buf, offset, std::forward<U>(args)...);
-};
-
-
-
-template <typename Fs, typename Sd, std::size_t SIZE>
-void PlacementMakePair(std::array<std::pair<const Fs&, const Sd&>, SIZE>& buf,
-	std::size_t& offset)
-{
-	// nothing
-};
 
 
 
@@ -1211,83 +1238,92 @@ void PlacementMakePair(std::array<std::pair<const Fs&, const Sd&>, SIZE>& buf,
  * @return return array of pair of iter on insertion node and 
  * bool indicates inserted or not
  * */
-template <typename EndpointData_T>
-template <typename... Args, typename>
-std::array<std::pair<typename Router<EndpointData_T>::iterator, bool>, sizeof... (Args) / 2>
-Router<EndpointData_T>::InsertSiblings(
-	const key_type& commonPath, const Args&... args)
+template <typename EndpointData_T, typename URLChar_T>
+template <typename... Args>
+std::array<std::pair<typename Router<EndpointData_T, URLChar_T>::iterator, bool>, sizeof... (Args) / 2>
+Router<EndpointData_T, URLChar_T>::InsertSiblings(
+	const key_type& commonPath, Args&&... args)
 {
-	/* Args == const key_type&, const EndpointData_t&, key_type& and etc */
+	/* Args == const [key_type|const URLChar_T]& , const EndpointData_t&, key_type& and etc */
+	static_assert(metaUtils::SelectionOp<InsertionFusion, Args...>::value(
+		std::make_index_sequence<sizeof... (Args)>{}), "Invalid args!");
 
-	static_assert(metaUtils::
-		SelectionOp<InsertionFusion, Args...>::
-			value(std::make_index_sequence<sizeof... Args>{}, )>, "Invalid args!");
 	UTREE_ASSERT(UrlUtils::CheckUrlCorrectness(commonPath), "Invalid url path!");
 
-	std::array<std::pair<const key_type*, const EndpointData_T*>,
-		sizeof... (Args) / 2> pack;
-	
-	/* fill array */
-	PlacementMakePair(pack, 0, std::addressof(args)...);
+	auto EmptyLambda = [](auto&& v) { return std::addressof(v); };
+	auto AllAsStringToStringView = [](auto&& asString) // const char*, char[N], 
+	{
+		if constexpr (std::is_same_v<std::remove_cvref_t<decltype(asString)>, key_type>)
+		{
+			return std::basic_string_view<URLChar_T, URLTraits>(asString.data());
+		}
 
-	std::array<std::pair<iterator, bool>, sizeof... (Args) / 2> arrIterAndIsInserted;
-	
-	// check all have same parent route:
-	// this parent route is empty or end with `/'
-	// and last route must not have `/'
+		return std::basic_string_view<URLChar_T, URLTraits>(asString);
+	};
+
+	auto pack = PackToArrayFolder<std::basic_string_view<URLChar_T, URLTraits>, const EndpointData_T*, sizeof... (Args),
+		decltype(&AllAsStringToStringView), decltype(&EmptyLambda)>{}.Fold(std::forward<Args>(args)...);
+
 	for (std::size_t i = 0; i < sizeof ... (Args) / 2; i = i + 2)
 	{
-		/* optimization needed 
+		/* TODO: optimization needed 
 			possible to check all urls in time!
 		*/
-		const key_type& url = *pack[i]; // not allowed!
-		// UTREE_ASSERT(UrlUtils::CheckUrlCorrectness)
-		UTREE_ASSERT(UrlUtils::CheckUrlCorrectness(url) && 
-			(url.count('/') == 1), "Invalid url path!");
+		auto& key = pack[i].first;
+		UTREE_ASSERT(UrlUtils::CheckUrlCorrectness(pack[i].first) && 
+		// TODO: optimization search, if found second '/' break loop;
+			(std::count(key.data(), key.data() + key.length(), static_cast<URLChar_T>('/')) == 1), "Invalid url path!");
 	}
 
-	/* go to the parent */
-	auto& [parent, isInserted] = insert_default_child(m_router, commonPath);
+	std::array<std::pair<iterator, bool>, sizeof... (Args) / 2> arrIterAndIsInserted;
 
-	if (isInserted)
-	{
-		/* we do not need to check existing. Node is a newbie */
-		for (std::size_t i = 0; i < sizeof... (Args); i = i + 2)
-		{
-			arrIterAndIsInserted[i] = {parent.put_child(*pack[i], *pack[i + 1]), true};
-		}
-	} else 
-	{
-		/* this is one possible solution. Benchmark needed! */
-		const std::size_t numberOfChildren = 
-			std::distance(parent.begin(), parent.cend());
+	
+	// // check all have same parent route:
+	// // this parent route is empty or end with `/'
+	// // and last route must not have `/'
 
-		
-		constexpr std::size_t magicNumber = 15;
-		if (numberOfChildren < magicNumber)
-		{
-			/* O(N^2) */
-			std::for_each(parent.begin(), parent.cend())
-		} else 
-		{
-			/* std::unordered_map */
-		}
+	// /* go to the parent */
+	// auto& [parent, isInserted] = insert_default_child(m_router, commonPath);
+
+	// if (isInserted)
+	// {
+	// 	/* we do not need to check existing. Node is a newbie */
+	// 	for (std::size_t i = 0; i < sizeof... (Args); i = i + 2)
+	// 	{
+	// 		arrIterAndIsInserted[i] = {parent.put_child(*pack[i], *pack[i + 1]), true};
+	// 	}
+	// } else 
+	// {
+	// 	/* this is one possible solution. Benchmark needed! */
+	// 	const std::size_t numberOfChildren = 
+	// 		std::distance(parent.begin(), parent.cend());
 
 		
-		for (std::size_t i = 0; i < sizeof... (Args); ++i)
-		{
+	// 	constexpr std::size_t magicNumber = 15;
+	// 	if (numberOfChildren < magicNumber)
+	// 	{
+	// 		/* O(N^2) */
+	// 		std::for_each(parent.begin(), parent.cend());
+	// 	} else 
+	// 	{
+	// 		/* std::unordered_map */
+	// 	}
 
-		}
-	}
+		
+	// 	for (std::size_t i = 0; i < sizeof... (Args); ++i)
+	// 	{
+
+	// 	}
+	// }
 
 
-	return allDataArr;
+	// return arrIterAndIsInserted;
 }
 
 
-// template <typename EndpointData_T>
+// template <typename EndpointData_T, typename URLChar_T>
 // typename Router<EndpointData_T::LNRIterator>
-// Router<EndpointData_T>::FindRoute(const std::string& url) /*noexcept*/
+// Router<EndpointData_T, URLChar_T>::FindRoute(const std::string& url) /*noexcept*/
 // {
 // 	if (UrlUtils::CheckUrlCorrectness(url))
 // 	{
@@ -1306,7 +1342,7 @@ Router<EndpointData_T>::InsertSiblings(
 // };
 
 
-// template <typename EndpointData_T>
+// template <typename EndpointData_T, typename URLChar_T>
 // template <typename... Args>
 // std::pair<iterator, bool>
 // EmplaceRoute(
@@ -1319,9 +1355,9 @@ Router<EndpointData_T>::InsertSiblings(
 // };
 
 
-// template <typename EndpointData_T> 
+// template <typename EndpointData_T>, typename URLChar_T 
 // int 
-// Router<EndpointData_T>::AddRoute(
+// Router<EndpointData_T, URLChar_T>::AddRoute(
 // 	const typename Routers_t::key_type& url, 
 // 	EndpointData_t* endpoint_data) noexcept(false)
 // {
@@ -1336,9 +1372,9 @@ Router<EndpointData_T>::InsertSiblings(
 // };
 
 
-// template <typename EndpointData_T>
+// template <typename EndpointData_T, typename URLChar_T>
 // template <typename... Args> 
-// int Router<EndpointData_T>::AddRoute(std::nothrow_t nthw,
+// int Router<EndpointData_T, URLChar_T>::AddRoute(std::nothrow_t nthw,
 // 	const typename Routers_t::key_type& url, Args&&... args) noexcept
 // {
 // 	static_assert(std::is_constructible_v<EndpointData_t, Args...>,
@@ -1366,9 +1402,9 @@ Router<EndpointData_T>::InsertSiblings(
 // };
 
 
-// template <typename EndpointData_T>
+// template <typename EndpointData_T, typename URLChar_T>
 // template <typename... Args> 
-// int Router<EndpointData_T>::AddRoute(
+// int Router<EndpointData_T, URLChar_T>::AddRoute(
 // 	const typename Routers_t::key_type& url, Args&&... args) noexcept(false)
 // {
 // 	static_assert(std::is_constructible_v<EndpointData_t, Args...>,
@@ -1384,9 +1420,9 @@ Router<EndpointData_T>::InsertSiblings(
 // };
 
 
-// template <typename EndpointData_T>	
-// typename Router<EndpointData_T>::EndpointData_t*
-// Router<EndpointData_T>::FindRoute(std::nothrow_t nthw,
+// template <typename EndpointData_T>, typename URLChar_T	
+// typename Router<EndpointData_T, URLChar_T>::EndpointData_t*
+// Router<EndpointData_T, URLChar_T>::FindRoute(std::nothrow_t nthw,
 // 	const typename Routers_t::key_type& url) noexcept
 // {
 // 	if (!UrlUtils::CheckUrlCorrectness(url))
@@ -1412,9 +1448,9 @@ Router<EndpointData_T>::InsertSiblings(
 // };
 
 
-// template <typename EndpointData_T>	
-// typename Router<EndpointData_T>::EndpointData_t*
-// Router<EndpointData_T>::FindRoute(
+// template <typename EndpointData_T>, typename URLChar_T	
+// typename Router<EndpointData_T, URLChar_T>::EndpointData_t*
+// Router<EndpointData_T, URLChar_T>::FindRoute(
 // 	const typename Routers_t::key_type& url) noexcept(false)
 // {
 // 	UrlUtils::CheckUrlCorrectnessThrow_V(url);
@@ -1429,9 +1465,9 @@ Router<EndpointData_T>::InsertSiblings(
 // };
 
 
-// template <typename EndpointData_T>	
-// const typename Router<EndpointData_T>::EndpointData_t* 
-// Router<EndpointData_T>::FindRoute(std::nothrow_t nthw,
+// template <typename EndpointData_T>, typename URLChar_T	
+// const typename Router<EndpointData_T, URLChar_T>::EndpointData_t* 
+// Router<EndpointData_T, URLChar_T>::FindRoute(std::nothrow_t nthw,
 // 	const typename Routers_t::key_type& url) const noexcept
 // {
 // 	(void)nthw;
@@ -1459,9 +1495,9 @@ Router<EndpointData_T>::InsertSiblings(
 // };
 
 
-// template <typename EndpointData_T>	
-// const typename Router<EndpointData_T>::EndpointData_t* 
-// Router<EndpointData_T>::FindRoute(
+// template <typename EndpointData_T>, typename URLChar_T	
+// const typename Router<EndpointData_T, URLChar_T>::EndpointData_t* 
+// Router<EndpointData_T, URLChar_T>::FindRoute(
 // 	const typename Routers_t::key_type& url) const noexcept(false)
 // {
 // 	UrlUtils::CheckUrlCorrectnessThrow_V(url);
@@ -1477,10 +1513,10 @@ Router<EndpointData_T>::InsertSiblings(
 // };
 
 
-// template <typename EndpointData_T>	
+// template <typename EndpointData_T>, typename URLChar_T	
 // std::pair<std::string, 
-// 	typename Router<EndpointData_T>::EndpointData_t*>
-// Router<EndpointData_T>::FindNearestRoute(
+// 	typename Router<EndpointData_T, URLChar_T>::EndpointData_t*>
+// Router<EndpointData_T, URLChar_T>::FindNearestRoute(
 // 		const typename Routers_t::key_type& url) noexcept(false)
 // {
 // 	auto route_pieces = 
@@ -1513,10 +1549,10 @@ Router<EndpointData_T>::InsertSiblings(
 // 	return {available_route, subtree->data().get()}; // RVNO?
 // };
 
-// template <typename EndpointData_T>
+// template <typename EndpointData_T, typename URLChar_T>
 // std::pair<std::string, 
-// 	const typename Router<EndpointData_T>::EndpointData_t*>
-// Router<EndpointData_T>::FindNearestRoute(
+// 	const typename Router<EndpointData_T, URLChar_T>::EndpointData_t*>
+// Router<EndpointData_T, URLChar_T>::FindNearestRoute(
 // 		const typename Routers_t::key_type& url) const noexcept(false)
 // {
 // 	auto route_pieces = 

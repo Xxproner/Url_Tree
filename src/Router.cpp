@@ -2,7 +2,9 @@
 
 
 // e.g this/is/example/ or this/ but not just `/'
-const std::regex UrlUtils::urlPathRegex("[^/#?]+(/[^/#?]+)*");
+template <typename CharT, typename Traits>
+const std::basic_regex<CharT, Traits> 
+UrlUtils::urlPathRegex(UrlUtils::GetUrlPathRegex<CharT>());
 
 std::vector<std::string>
 	UrlUtils::Split(std::string_view spliting_string)
@@ -95,13 +97,13 @@ bool UrlUtils::CheckUrlCorrectness(
 };
 
 
-void UrlUtils::EraseQueryParams(
-	std::string& url) noexcept
-{
-	std::size_t query_pm_spec_symbol_pos = url.find('?');
+// void UrlUtils::EraseQueryParams(
+// 	std::string& url) noexcept
+// {
+// 	std::size_t query_pm_spec_symbol_pos = url.find('?');
 
-	if (query_pm_spec_symbol_pos != std::string::npos)
-	{
-		url.erase(query_pm_spec_symbol_pos);
-	}
-}
+// 	if (query_pm_spec_symbol_pos != std::string::npos)
+// 	{
+// 		url.erase(query_pm_spec_symbol_pos);
+// 	}
+// }
