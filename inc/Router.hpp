@@ -95,6 +95,27 @@ namespace metaUtils
 				>...>::value;
 		};
 	};
+
+
+	template <
+	    typename T,
+	    typename Cont_T,
+	    typename Alloc_T
+	>
+	struct is_erasable
+	{
+	    constexpr static auto value = 
+	        std::is_invocable_v<typename std::allocator_traits<Alloc_T>::destroy, Alloc_T, std::add_pointer_t<T>> &&
+	        std::is_same_v<typename Cont_T::value_type, T> &&
+	        std::is_same_v<typename Cont_T::allocator_type, typename std::allocator_traits<Alloc_T>::template rebind_alloc<T>>;
+	};
+
+	template <
+	    typename T,
+	    typename Cont_T,
+	    typename Alloc_T
+	>
+	using is_erasable_v = struct is_erasable<T, Cont_T, Alloc_T>;
 }; // namespace metaUtils
 
 
@@ -114,8 +135,9 @@ namespace std
 #endif // !__cplusplus > 202002L
 
 
-template <class EndpointData_T
-	, typename URLChar_T = char>
+template <
+	class EndpointData_T,
+	class URLChar_T = char>
 class Router
 {
 	// EndpointData_T is comparable with bool to indicate whether initiate or not
@@ -125,11 +147,11 @@ private:
 
 	using Self_T = Router<EndpointData_T, URLChar_T>;
 
-	struct Node_T; // demand copy constructable
-
 	constexpr static auto cpyCable = std::is_copy_constructible_v<EndpointData_T>;
-
 	constexpr static auto mvCable = std::is_move_constructible_v<EndpointData_T>;
+
+	// this types are not erasable (https://en.cppreference.com/w/cpp/named_req/Erasable)
+
 
 	// think about void cause of deleting allocator<void> from c++17
 	static_assert(not std::is_same_v<EndpointData_T, void>, "void");
@@ -142,21 +164,18 @@ private:
 	// static_assert(std::is_same_v<decltype(std::declval<EndpointData_T>() != false), bool>, 
 	// 	"false initicates default initialization!");
 
-	// using key_type = std::basic_string<CharT, Traits>;
-	using URLTraits = std::char_traits<URLChar_T>;
-	using key_type = std::basic_string<URLChar_T, URLTraits>;
+	using URLTraits_T = std::char_traits<URLChar_T>;
+	using Key_T = std::basic_string<URLChar_T, URLTraits_T>;
 
+	struct Node_T;
 	/* children sorted by descending order */
-	using Router_T = pt::basic_ptree<key_type, Node_T>; // self_type
+	using Router_T = pt::basic_ptree<Key_T, Node_T>; // self_type
 
 	constexpr static const URLChar_T* def_realm = nullptr;
 
 	struct Node_T
 	{
-		EndpointData_T m_endpointData; // context
-
-		// be carefull of lifetime of m_realm
-		const char* m_realm; // realm 
+		EndpointData_T m_endpointData; // content
 
 
 		Node_T(Router_T* const parent = nullptr);
@@ -187,7 +206,8 @@ private:
 
 		const EndpointData_T& data() const noexcept { return m_endpointData; };
 	private:
-		Router_T* /*const*/ m_ptrParent;
+		const char* m_realm;
+		Router_T* const m_ptrParent;
 
 
 		Router_T* Grandparent() const;
@@ -199,48 +219,45 @@ private:
 
 
 		friend struct LNRIterator;
-		// parent ptr is stored in this only for fast iterating
-		// only last nodes have parent ptr not null
-		// also for iterating
 	};
 
 
-	using CharT = typename key_type::value_type;
+	using Char_T = typename Key_T::value_type;
 
-	using path_type = typename Router_T::path_type;
+	using Path_T = typename Router_T::path_type;
 
 	using NativeIter_T = typename Router_T::iterator;
 	using ConstNativeIter_T = typename Router_T::const_iterator;
 
 
 	static boost::optional<Router_T&>
-	GetDirectChildOptional(Router_T& parent, const key_type& key);
+	GetDirectChildOptional(Router_T& parent, const Key_T& key);
 
 
 
 	static boost::optional<Router_T&>
-	GetChildOptional(Router_T& parent, const key_type& key);
+	GetChildOptional(Router_T& parent, const Key_T& key);
 
 
 
 	static Router_T&
 	PutDirectChild(Router_T& parent, 
-		const key_type& key, const Router_T& child);
+		const Key_T& key, const Router_T& child);
 
 
 
 	static Router_T&
 	AddDirectChild(Router_T& parent, 
-		const key_type& key, const Router_T& child);
+		const Key_T& key, const Router_T& child);
 
 public:
+	
 	// Requirement of AllocatorAwareContainer
 	// using value_type = typename rebindA_T::value_type;
-
+	
 	using value_type = Node_T;
 	using reference = std::add_lvalue_reference_t<value_type>;
 	using const_reference = const value_type&;
-
 
 	/**
 	 * LNRIterator covers pt::iterator
@@ -250,11 +267,11 @@ public:
 	{
 	private:
 		using room_type = Self_T;
+	public:
 #if !__cplusplus > 202002L
 		using value_type = std::add_const_t<
 			typename room_type::value_type>; // removed in c++20
 #endif // !__cplusplus > 202002L
-	public:
 
 		using difference_type = typename NativeIter_T::difference_type;
 		// using reference = typename NativeIter_T::reference_type;
@@ -305,7 +322,7 @@ public:
 
 		friend Router<EndpointData_T, URLChar_T>;
 	};
-
+	using iterator = struct LNRIterator;
 
 	struct const_LNRIterator
 	{
@@ -323,13 +340,12 @@ public:
 		using iterator_category = std::output_iterator_tag;
 
 	private:
-		// native iterator or pointer?
-		// std::pair<key_type, property_tree>
 		ConstNativeIter_T m_constNativeIter;
-		
-		// LNRIterator(reference);
 
 		const_LNRIterator(ConstNativeIter_T);
+
+
+		const_LNRIterator(typename room_type::iterator);
 
 
 		const_LNRIterator(const typename room_type::Router_T*);
@@ -367,44 +383,43 @@ public:
 
 		friend Router<EndpointData_T, URLChar_T>;
 	};
-
-	using iterator = struct LNRIterator;
 	using const_iterator = struct const_LNRIterator;
 
+	using difference_type = typename iterator::difference_type;
+	using size_type = std::size_t;
 	
-	// for all that is convertible to key_type
-	Router(const key_type& host, const key_type& scheme, uint16_t port = 80);
+	Router(const Key_T& host, const Key_T& scheme, uint16_t port = 80);
 
 
 	reference
-	operator[](const key_type& url);
+	operator[](const Key_T& url);
 
 
 	
 	std::pair<iterator, bool>
 	InsertRoute(
-		const key_type& url,
+		const Key_T& url,
 		const EndpointData_T& value,
 		const char* realm = def_realm);
 
 
 	// std::pair<iterator, bool> InsertRoute_hint(
-	// 		const key_type& url,
+	// 		const Key_T& url,
 	// 		const EndpointData_T& value,
 	// 		const char* realm /*= def_realm*/,
 	// 		const_iterator hint);
 
 
-	iterator FindRoute(const key_type& urlPath) /*noexcept*/;
+	iterator FindRoute(const Key_T& urlPath) /*noexcept*/;
 
 
-	// iterator FindRoute(const key_type& urlPath, std::nothrow_t) noexcept;
+	// iterator FindRoute(const Key_T& urlPath, std::nothrow_t) noexcept;
 
 
-	iterator FindRouteOrNearestParent(const key_type& urlPath) /*noexcept*/;
+	iterator FindRouteOrNearestParent(const Key_T& urlPath) /*noexcept*/;
 
 
-	// iterator FindRouteOrNearestParent(const key_type& urlPath, std::nothrow_t) noexcept;
+	// iterator FindRouteOrNearestParent(const Key_T& urlPath, std::nothrow_t) noexcept;
 
 
 	/* extremely hard */
@@ -416,7 +431,7 @@ public:
 
 	template <typename... Args>
 	std::array<std::pair<iterator, bool>, sizeof... (Args) / 2>
-	InsertSiblings(const key_type& commonPath, Args&&... args);
+	InsertSiblings(const Key_T& commonPath, Args&&... args);
 
 
 
@@ -424,11 +439,11 @@ public:
 
 
 
-	LNRIterator end();
+	iterator end();
 
 
 
-	const_LNRIterator cend();
+	const_iterator cend();
 private:
 
 	template <typename T, std::size_t>
@@ -437,7 +452,7 @@ private:
 
 	// possible to move to .cpp
 	template <std::size_t N>
-	struct InsertionFusion<key_type, N> 
+	struct InsertionFusion<Key_T, N> 
 	{
 		constexpr static auto value = metaUtils::is_even<N>::value;	
 	};
@@ -474,7 +489,7 @@ private:
 	static std::pair<Router_T&, bool>
 	InsertChild(
 		Router_T& router, 
-		const key_type& path,
+		const Key_T& path,
 		const EndpointData_T& data);
 
 
@@ -482,21 +497,21 @@ private:
 	static std::pair<Router_T&, bool>
 	InsertLazyDefaultChild(
 		Router_T& router,
-		const key_type& path);
+		const Key_T& path);
 
 
 
-	LNRIterator begin();
+	iterator begin();
 
 
 
-	const_LNRIterator cbegin();
+	const_iterator cbegin();
 
 
 	template <typename... Args>
-	// need expand for all that convertable for key_type
-	key_type
-	FindCommonPath(const key_type& url, const Args&... urls);
+	// need expand for all that convertable for Key_T
+	Key_T
+	FindCommonPath(const Key_T& url, const Args&... urls);
 	
 
 	#if defined(UNIT_NATIVE_TEST)
@@ -504,8 +519,8 @@ private:
 	#endif // defined(UNIT_NATIVE_TEST) 
 
 private:
-	key_type m_host; // standart allocator
-	key_type m_scheme;
+	Key_T m_host; // standart allocator
+	Key_T m_scheme;
 	uint16_t m_port;
 // public:
 	Router_T m_router;

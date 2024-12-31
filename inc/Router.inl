@@ -1,235 +1,8 @@
-#include <vector>
-#include <string>
-#include <regex>
 #include <utility>
 
-
-class UrlUtils 
-{
-public:
-	template <typename CharT, 
-		typename Traits = std::char_traits<CharT>, 
-		typename Alloc = std::allocator<CharT>>
-	static std::vector<std::basic_string<CharT, Traits, Alloc>>
-		Split(std::basic_string_view<CharT, Traits> spliting_string);
-
-
-	template <typename CharT, 
-		typename Traits = std::char_traits<CharT>,
-		typename Alloc = std::allocator<CharT>>
-	static std::vector<std::basic_string<CharT, Traits, Alloc>>
-		SplitString(const std::basic_string<CharT, Traits, Alloc>& spliting_stream);
-
-
-	template <typename CharT, 
-		typename Traits = std::char_traits<CharT>>
-	static void
-		CheckUrlCorrectness(std::nothrow_t, 
-			std::basic_string_view<CharT, Traits> url) noexcept;
-
-
-	template <typename CharT, 
-		typename Traits = std::char_traits<CharT>>
-	static bool
-		CheckUrlCorrectness(
-			std::basic_string_view<CharT, Traits> url);
-
-
-	template <typename CharT, 
-		typename Traits  = std::char_traits<CharT>, 
-		typename Alloc = std::allocator<CharT>>
-	static bool
-		CheckUrlCorrectness(
-			const std::basic_string<CharT, Traits, Alloc>& url);
-
-
-	template <typename CharT>
-	static bool 
-		CheckUrlCorrectness(const CharT* url);
-
-
-	// template <typename CharT, 
-	// 	typename Traits = std::char_traits<CharT>, 
-	// 	typename Alloc = std::allocator<CharT>>
-	// static void 
-	// 	EraseQueryParams(std::basic_string<CharT, Traits, Alloc>& url) noexcept;
-
-
-
-	template <typename CharT>
-	constexpr static const CharT* GetUrlPathRegex();
-private:
-	/* template regex */
-	template <typename CharT,
-		typename Traits = std::regex_traits<CharT>
-	>
-	static std::basic_regex<CharT, Traits> urlPathRegex;
-};
-
-
-template <>
-const char* UrlUtils::GetUrlPathRegex()
-{
-	return "[^/#?]+(/[^/#?]+)*";
-};
-
-
-
-#if !(__cplusplus < 202002L)
-template <>
-const char8_t* UrlUtils::GetUrlPathRegex()
-{
-	return u8"[^/#?]+(/[^/#?]+)*";
-}
-#endif // !__cplusplus > 202002L
-
-
-template <>
-const char16_t* UrlUtils::GetUrlPathRegex()
-{
-	return u"[^/#?]+(/[^/#?]+)*";
-}
-
-
-template <>
-const char32_t* UrlUtils::GetUrlPathRegex()
-{
-	return U"[^/#?]+(/[^/#?]+)*";
-}
-
-
-template <>
-const wchar_t* UrlUtils::GetUrlPathRegex()
-{
-	return L"[^/#?]+(/[^/#?]+)*";
-};
-
-
-template <typename CharT, 
-		typename Traits = std::char_traits<CharT>
-	>
-std::basic_regex<CharT, Traits> UrlUtils::urlPathRegex(
-	UrlUtils::GetUrlPathRegex<CharT>());
-
-
-
-template <typename CharT, 
-	typename Traits, 
-	typename Alloc>
-std::vector<std::basic_string<CharT, Traits, Alloc>>
-	UrlUtils::Split(std::basic_string_view<CharT, Traits> spliting_string)
-{
-	std::vector<std::basic_string<CharT, Traits, Alloc>> splited_url;
-	size_t rd_pos = 0;
-    size_t curr_len = 0;
-
-	for (size_t i = 0; i < spliting_string.length(); ++i)
-	{
-		if (spliting_string[i] == static_cast<CharT>('/')) // is it safe?
-		{
-			splited_url.emplace_back(spliting_string.data() + rd_pos, curr_len);
-			rd_pos = i + 1;
-			curr_len = 0;
-		} else 
-		{
-		    ++curr_len;
-		}
-	}
-
-    if (rd_pos != spliting_string.length())
-    {
-        splited_url.emplace_back(spliting_string.data() + rd_pos, curr_len);
-    };
-
-	return splited_url; // RNVO
-};
-
-/**
- * @param stringString presents 
- * url path by standart without ending '/' 
- * */
-template <typename CharT, 
-	typename Traits, 
-	typename Alloc>
-std::vector<std::basic_string<CharT, Traits, Alloc>>
-	UrlUtils::SplitString(
-		const std::basic_string<CharT, Traits, Alloc>& splitingString)
-{
-    constexpr CharT delimiter = static_cast<CharT>('/');
-	auto numTokens = std::count(splitingString.cbegin(),
-		splitingString.cend(), '/') + 1;
-
-	std::vector<std::string> tokens;
-    tokens.reserve(numTokens);
-  
-    size_t startPos = 0ul
-    		, endPos = 0ul;
-
-    while ((endPos = splitingString.find(delimiter, startPos)) !=
-    			std::string::npos)
-    {
-    	tokens.emplace_back(splitingString.data(),
-    	    startPos, endPos - startPos);
-    	startPos = endPos + 1;
-    }
-
-    
-	tokens.emplace_back(splitingString.data(),
-    	startPos, splitingString.length());
-
-    return tokens;
-}
-
-
-template <typename CharT, 
-	typename Traits>
-bool UrlUtils::CheckUrlCorrectness(
-	std::basic_string_view<CharT, Traits> urlRawPath)
-{
-	std::match_results<const CharT*> ignoring;
-	return std::regex_match(urlRawPath.data(), urlRawPath.data() + 
-		urlRawPath.length(), ignoring, urlPathRegex<CharT>);
-};
-
-
-template <typename CharT, 
-	typename Traits,
-	typename Alloc>
-bool UrlUtils::CheckUrlCorrectness(
-	const std::basic_string<CharT, Traits, Alloc>& urlRawPath)
-{
-	return UrlUtils::CheckUrlCorrectness(
-		std::basic_string_view<CharT, Traits>{urlRawPath.c_str()});
-};
-
-
-template <typename CharT>
-bool UrlUtils::CheckUrlCorrectness(
-	const CharT* urlRawPath)
-{
-	return CheckUrlCorrectness(std::basic_string_view<CharT,std::char_traits<CharT>>{
-		urlRawPath});
-};
-
-
-// template <typename CharT, 
-// 	typename Traits,
-// 	typename Alloc>
-// void UrlUtils::EraseQueryParams(
-// 	std::basic_string<CharT, Traits, Alloc>& url) noexcept
-// {
-// 	std::size_t query_pm_spec_symbol_pos = url.find(static_cast<CharT>('?'));
-
-// 	if (query_pm_spec_symbol_pos != std::string::npos)
-// 	{
-// 		url.erase(query_pm_spec_symbol_pos);
-// 	}
-// }
-
-// ========================================================
-// ========================================================
-// ========================================================
-
+#include "UrlUtils.hpp"
+#include "Node_impl.inl"
+#include "Iterator_impl.inl"
 
 template <typename EndpointData_T, typename URLChar_T>
 Router<EndpointData_T, URLChar_T>::Router(
@@ -243,121 +16,6 @@ Router<EndpointData_T, URLChar_T>::Router(
 	// m_router.put(path_type{"#", '/'}, Node_T(EndpointData_T{}, def_realm, &m_router));
 };
 
-
-
-
-template <typename EndpointData_T, typename URLChar_T>
-Router<EndpointData_T, URLChar_T>::Node_T::Node_T(Router_T* const ptrParent)
-	: m_endpointData(EndpointData_T{})
-	, m_realm(nullptr)
-	, m_ptrParent(ptrParent)
-{
-	/* nothing */
-}
-
-
-
-template <typename EndpointData_T, typename URLChar_T>
-Router<EndpointData_T, URLChar_T>::Node_T::Node_T(
-	EndpointData_T data, const char* realm, Router_T* const ptrParent)
-	: m_endpointData(data)
-	, m_realm(realm)
-	, m_ptrParent(ptrParent)
-{
-	/* nothing */
-}
-
-
-
-template <typename EndpointData_T, typename URLChar_T>
-Router<EndpointData_T, URLChar_T>::Node_T::Node_T(
-	const Node_T& otherNode)
-	: m_endpointData(otherNode.m_endpointData)
-	, m_realm(otherNode.m_realm)
-	, m_ptrParent(otherNode.m_ptrParent)
-{
-	// nothing
-};
-
-
-// template <typename EndpointData_T, typename URLChar_T>
-// Router<EndpointData_T, URLChar_T>::Node_T::Node_T(
-// 	Node_T&& otherNode)
-// 	: m_endpointData(std::move(otherNode.m_endpointData))
-// 	, m_realm(otherNode.m_realm)
-// 	, m_ptrParent(otherNode.m_ptrParent)
-// {
-// 	// nothing
-// 	// m_realm = nullptr;
-// 	// m_ptrParent = nullptr
-// };
-
-
-
-template <typename EndpointData_T, typename URLChar_T>
-typename Router<EndpointData_T, URLChar_T>::Node_T&
-Router<EndpointData_T, URLChar_T>::Node_T::operator=(
-	const Node_T& otherNode)
-{
-	if (this != &otherNode)
-	{
-		m_endpointData = otherNode.m_endpointData;
-		m_realm = otherNode.m_realm;
-		m_ptrParent = otherNode.m_ptrParent;
-	}
-
-	return *this;
-};
-
-
-
-
-// template <typename EndpointData_T, typename URLChar_T>
-// typename Router<EndpointData_T, URLChar_T>::Node_T&
-// Router<EndpointData_T, URLChar_T>::Node_T::operator=(
-// 	Node_T&& otherNode)
-// {
-// 	m_endpointData = std::move(m_endpointData);
-// 	m_realm = otherNode.m_realm;
-// 	m_ptrParent = otherNode.m_ptrParent;
-
-// 	return *this;
-// };
-
-
-template <typename EndpointData_T, typename URLChar_T>
-typename Router<EndpointData_T, URLChar_T>::Router_T*
-Router<EndpointData_T, URLChar_T>::Node_T::Parent() const
-{
-	return m_ptrParent;	
-};
-
-
-
-template <typename EndpointData_T, typename URLChar_T>
-typename Router<EndpointData_T, URLChar_T>::Router_T*
-Router<EndpointData_T, URLChar_T>::Node_T::Grandparent() const
-{
-	// data() return not valid ref
-	Router_T* parent = Parent(); // for debug
-
-	return parent->data().Parent();
-};
-
-
-
-// template <typename EndpointData_T, typename URLChar_T>
-// Router<EndpointData_T, URLChar_T>::Node_T::Node_T(
-// 	EndpointData_T data
-// 	, std::string realm
-// 	, typename Router<EndpointData_T, URLChar_T>::Router_T* const ptrParent)
-	
-// 	: m_endpointData(std::move(data))
-// 	, m_realm(std::move(realm))
-// 	, m_ptrParent(ptrParent)
-// {
-// 	// nothing
-// };
 
 
 static std::string TrimString(
@@ -385,137 +43,6 @@ static std::string TrimString(
 
 
 
-// template <typename EndpointData_T, typename URLChar_T>
-// Router<EndpointData_T, URLChar_T>::LNRIterator::LNRIterator(
-// 	Router<EndpointData_T, URLChar_T>::LNRIterator::reference node)
-// 	: m_nativeIter(GetIterFromThis(std::addressof(node)))
-// {
-//	// nothing
-// };
-
-
-// =================================================
-// =============== struct LNRIterator ==============
-// =================================================
-
-template <typename EndpointData_T, typename URLChar_T>
-Router<EndpointData_T, URLChar_T>::LNRIterator::LNRIterator(
-	Router<EndpointData_T, URLChar_T>::NativeIter_T nativeIter)
-	: m_nativeIter(nativeIter)
-{
-	// nothing
-};
-
-
-
-template <typename EndpointData_T, typename URLChar_T>
-typename Router<EndpointData_T, URLChar_T>::NativeIter_T
-Router<EndpointData_T, URLChar_T>::LNRIterator::GetIterFromThis(
-	Router<EndpointData_T, URLChar_T>::Router_T* node) const
-{
-	Router_T* parentOfNode = node->data().Parent();
-	NativeIter_T nativeIterSameDeep = parentOfNode->begin();
-
-	while (std::addressof(nativeIterSameDeep->second) != node)
-	{
-		nativeIterSameDeep++;
-	}
-
-	return nativeIterSameDeep;
-};
-
-
-
-template <typename EndpointData_T, typename URLChar_T>
-Router<EndpointData_T, URLChar_T>::LNRIterator::LNRIterator(
-	Router<EndpointData_T, URLChar_T>::Router_T& node)
-	: m_nativeIter(GetIterFromThis(std::addressof(node)))
-{
-	// nothing
-};
-
-
-
-template <typename EndpointData_T, typename URLChar_T>
-Router<EndpointData_T, URLChar_T>::LNRIterator::LNRIterator(
-	Router<EndpointData_T, URLChar_T>::Router_T* node)
-	: m_nativeIter(GetIterFromThis(node))
-{
-	// nothing
-};
-
-
-
-template <typename EndpointData_T, typename URLChar_T>
-typename Router<EndpointData_T, URLChar_T>::LNRIterator&
-Router<EndpointData_T, URLChar_T>::LNRIterator::operator++()
-{
-	m_nativeIter = end();
-	return *this;
-};
-
-
-
-template <typename EndpointData_T, typename URLChar_T>
-typename Router<EndpointData_T, URLChar_T>::LNRIterator
-Router<EndpointData_T, URLChar_T>::LNRIterator::operator++(int)
-{
-	NativeIter_T retIter = m_nativeIter;
-	m_nativeIter = end();
-
-	return  retIter;
-};
-
-
-
-template <typename EndpointData_T, typename URLChar_T>
-typename Router<EndpointData_T, URLChar_T>::LNRIterator::reference
-Router<EndpointData_T, URLChar_T>::LNRIterator::Data() const
-{
-	return m_nativeIter->second.data();
-};
-
-
-
-template <typename EndpointData_T, typename URLChar_T>
-typename Router<EndpointData_T, URLChar_T>::LNRIterator::reference
-Router<EndpointData_T, URLChar_T>::LNRIterator::operator*() const
-{
-	return this->Data();
-};
-
-
-
-template <typename EndpointData_T, typename URLChar_T>
-typename Router<EndpointData_T, URLChar_T>::LNRIterator::pointer
-Router<EndpointData_T, URLChar_T>::LNRIterator::operator->() const
-{
-	return std::addressof(Data());
-};
-
-
-
-template <typename EndpointData_T, typename URLChar_T>
-bool
-Router<EndpointData_T, URLChar_T>::LNRIterator::operator==(LNRIterator otherIter) const
-{
-	return m_nativeIter == otherIter.m_nativeIter;
-};
-
-
-
-template <typename EndpointData_T, typename URLChar_T>
-bool
-Router<EndpointData_T, URLChar_T>::LNRIterator::operator!=(LNRIterator otherIter) const
-{
-	return not this->operator==(otherIter);
-};
-
-
-// =================================================
-// ============ end struct LNRIterator =============
-// =================================================
-
 
 template <typename EndpointData_T, typename URLChar_T>
 typename Router<EndpointData_T, URLChar_T>::iterator
@@ -534,124 +61,6 @@ Router<EndpointData_T, URLChar_T>::end()
 };
 
 
-
-// =================================================
-// =========== struct const_LNRIterator ============
-// =================================================
-
-template <typename EndpointData_T, typename URLChar_T>
-Router<EndpointData_T, URLChar_T>::const_LNRIterator::const_LNRIterator(
-	Router<EndpointData_T, URLChar_T>::ConstNativeIter_T constNativeIter)
-	: m_constNativeIter(constNativeIter)
-{
-	// nothing
-};
-
-
-
-template <typename EndpointData_T, typename URLChar_T>
-typename Router<EndpointData_T, URLChar_T>::ConstNativeIter_T
-Router<EndpointData_T, URLChar_T>::const_LNRIterator::GetIterFromThis(
-	const Router<EndpointData_T, URLChar_T>::Router_T* node) const
-{
-	const Router_T* parentOfNode = node->data().Parent();
-
-	return std::find_if(parentOfNode.begin(), parentOfNode.end(), 
-		[node](const LNRIterator& child){
-			return std::addressof(child.second) == node;
-		});
-};
-
-
-
-template <typename EndpointData_T, typename URLChar_T>
-Router<EndpointData_T, URLChar_T>::const_LNRIterator::const_LNRIterator(
-	const Router<EndpointData_T, URLChar_T>::Router_T& node)
-	: m_constNativeIter(GetIterFromThis(std::addressof(node)))
-{
-	// nothing
-};
-
-
-
-template <typename EndpointData_T, typename URLChar_T>
-Router<EndpointData_T, URLChar_T>::const_LNRIterator::const_LNRIterator(
-	const Router<EndpointData_T, URLChar_T>::Router_T* node)
-	: m_constNativeIter(GetIterFromThis(node))
-{
-	// nothing
-};
-
-
-
-template <typename EndpointData_T, typename URLChar_T>
-typename Router<EndpointData_T, URLChar_T>::const_iterator&
-Router<EndpointData_T, URLChar_T>::const_LNRIterator::operator++()
-{
-	m_constNativeIter = end();
-	return *this;
-};
-
-
-
-template <typename EndpointData_T, typename URLChar_T>
-typename Router<EndpointData_T, URLChar_T>::const_iterator
-Router<EndpointData_T, URLChar_T>::const_LNRIterator::operator++(int)
-{
-	ConstNativeIter_T retIter = m_constNativeIter;
-	m_constNativeIter = end();
-
-	return retIter;
-};
-
-
-
-template <typename EndpointData_T, typename URLChar_T>
-typename Router<EndpointData_T, URLChar_T>::const_LNRIterator::reference
-Router<EndpointData_T, URLChar_T>::const_LNRIterator::Data() const
-{
-	return m_constNativeIter->second.data();
-};
-
-
-
-template <typename EndpointData_T, typename URLChar_T>
-typename Router<EndpointData_T, URLChar_T>::const_LNRIterator::reference
-Router<EndpointData_T, URLChar_T>::const_LNRIterator::operator*() const
-{
-	return this->Data();
-};
-
-
-
-template <typename EndpointData_T, typename URLChar_T>
-typename Router<EndpointData_T, URLChar_T>::const_LNRIterator::pointer
-Router<EndpointData_T, URLChar_T>::const_LNRIterator::operator->() const
-{
-	return std::addressof(Data());
-};
-
-
-
-template <typename EndpointData_T, typename URLChar_T>
-bool
-Router<EndpointData_T, URLChar_T>::const_LNRIterator::operator==(const_LNRIterator otherIter) const
-{
-	return m_constNativeIter == otherIter.m_constNativeIter;
-};
-
-
-
-template <typename EndpointData_T, typename URLChar_T>
-bool
-Router<EndpointData_T, URLChar_T>::const_LNRIterator::operator!=(const_LNRIterator otherIter) const
-{
-	return not this->operator==(otherIter);
-};
-
-// =================================================
-// ========= end struct const_LNRIterator ==========
-// =================================================
 
 template <typename EndpointData_T, typename URLChar_T>
 typename Router<EndpointData_T, URLChar_T>::const_iterator
@@ -676,7 +85,7 @@ typename Router<EndpointData_T, URLChar_T>::reference
 Router<EndpointData_T, URLChar_T>::operator[](
 	const key_type& url)
 {
-	UTREE_ASSERT (UrlUtils::CheckUrlCorrectness(url), "Invalid url path!");
+	UTREE_ASSERT (UrlUtils<URLChar_T, URLTraits_T, typename Router::allocator_type>::CheckUrlCorrectness(url), "Invalid url path!");
 
 	return InsertLazyDefaultChild(m_router, url).first.data();
 };
@@ -725,7 +134,7 @@ Router<EndpointData_T, URLChar_T>::GetChildOptional(Router_T& parent, const key_
 {
 	using opt = boost::optional<Router_T&>;
 
-	auto urlPathPieces = UrlUtils::SplitString(key);
+	auto urlPathPieces = UrlUtils<URLChar_T, URLTraits_T, typename Router::allocator_type>::SplitString(key);
 	Router_T* parentNode = nullptr;
 
 	opt child = GetDirectChildOptional(parent, urlPathPieces.front());
@@ -822,10 +231,10 @@ Router<EndpointData_T, URLChar_T>::InsertRoute(
 	, const EndpointData_T& value
 	, const char* realm)
 {
-	UTREE_ASSERT(UrlUtils::CheckUrlCorrectness(url), 
+	UTREE_ASSERT(UrlUtils<URLChar_T, URLTraits_T, typename Router::allocator_type>::CheckUrlCorrectness(url), 
 		"Invalid url path");
 
-	auto urlPaths = UrlUtils::SplitString(url);
+	auto urlPaths = UrlUtils<URLChar_T, URLTraits_T, typename Router::allocator_type>::SplitString(url);
 	const size_t numPaths = urlPaths.size();
 
 	Router_T* parent = &m_router;
@@ -901,7 +310,7 @@ template <typename EndpointData_T, typename URLChar_T>
 typename Router<EndpointData_T, URLChar_T>::iterator
 Router<EndpointData_T, URLChar_T>::FindRoute(const key_type& url) /*noexcept*/
 {
-	UTREE_ASSERT(UrlUtils::CheckUrlCorrectness(url), "Invalid url path!");
+	UTREE_ASSERT(UrlUtils<URLChar_T, URLTraits_T, typename Router::allocator_type>::CheckUrlCorrectness(url), "Invalid url path!");
 
 	if (auto child = GetChildOptional(m_router, url);
 			child)
@@ -918,7 +327,7 @@ Router<EndpointData_T, URLChar_T>::FindRoute(const key_type& url) /*noexcept*/
 // typename Router<EndpointData_T, URLChar_T>::iterator
 // Router<EndpointData_T, URLChar_T>::FindRoute(const key_type& url, std::nothrow_t) noexcept
 // {
-// 	UTREE_ASSERT(UrlUtils::CheckUrlCorrectness(url), "Invalid url path!");
+// 	UTREE_ASSERT(UrlUtils<URLChar_T, URLTraits_T, typename Router::allocator_type>::CheckUrlCorrectness(url), "Invalid url path!");
 
 // 	if (auto child = m_router.get_child_optional(path_type{url, '/'});
 // 				child)
@@ -935,10 +344,10 @@ template <typename EndpointData_T, typename URLChar_T>
 typename Router<EndpointData_T, URLChar_T>::iterator
 Router<EndpointData_T, URLChar_T>::FindRouteOrNearestParent(const key_type& urlPath) /*noexcept*/
 {
-	UTREE_ASSERT(UrlUtils::CheckUrlCorrectness(urlPath), "Invalid url path!");
+	UTREE_ASSERT(UrlUtils<URLChar_T, URLTraits_T, typename Router::allocator_type>::CheckUrlCorrectness(urlPath), "Invalid url path!");
 	
 	std::vector<key_type> urlPathPieces = 
-		UrlUtils::SplitString(urlPath);
+		UrlUtils<URLChar_T, URLTraits_T, typename Router::allocator_type>::SplitString(urlPath);
 
 	const std::size_t numPathPieces = urlPathPieces.size();
 
@@ -970,10 +379,10 @@ Router<EndpointData_T, URLChar_T>::FindRouteOrNearestParent(const key_type& urlP
 // typename Router<EndpointData_T, URLChar_T>::iterator
 // Router<EndpointData_T, URLChar_T>::FindRouteOrNearestParent(const key_type& urlPath, std::nothrow_t) noexcept
 // {
-// 	UTREE_ASSERT(UrlUtils::CheckUrlCorrectness(urlPath), "Invalid url path!")
+// 	UTREE_ASSERT(UrlUtils<URLChar_T, URLTraits_T, typename Router::allocator_type>::CheckUrlCorrectness(urlPath), "Invalid url path!")
 
 // 	std::vector<key_type> urlPathPieces = 
-// 		UrlUtils::SplitString(urlPath);
+// 		UrlUtils<URLChar_T, URLTraits_T, typename Router::allocator_type>::SplitString(urlPath);
 
 // 	auto& parent = m_router
 // 		, child = parent.get_child_optional(urlPathPieces.front());
@@ -1012,7 +421,7 @@ Router<EndpointData_T, URLChar_T>::FindRouteOrNearestParent(const key_type& urlP
 // 	std::array<const CpyInsertionPair&, sizeof... (Args)> allDataArr {args...};
 
 // 	UTREE_ASSERT(std::all_of(allDataArr.cbegin(), allDataArr.cend(), [](const CpyInsertionPair& insertionPair){
-// 		return UrlUtils::CheckUrlCorrectness(insertionPair.url);
+// 		return UrlUtils<URLChar_T, URLTraits_T, typename Router::allocator_type>::CheckUrlCorrectness(insertionPair.url);
 // 	}), "Invalid url path!");
 
 // 	std::array<std::pair<iterator, bool>, sizeof... (Args)> insertedIterArr;
@@ -1129,7 +538,7 @@ Router<EndpointData_T, URLChar_T>::InsertLazyDefaultChild(
 
 	bool isInserted = false;
 	std::vector<key_type> urlPathPieces =
-		UrlUtils::SplitString(path);
+		UrlUtils<URLChar_T, URLTraits_T, typename Router::allocator_type>::SplitString(path);
 
 	Router_T* parent = std::addressof(router);
 
@@ -1248,7 +657,7 @@ Router<EndpointData_T, URLChar_T>::InsertSiblings(
 	static_assert(metaUtils::SelectionOp<InsertionFusion, Args...>::value(
 		std::make_index_sequence<sizeof... (Args)>{}), "Invalid args!");
 
-	UTREE_ASSERT(UrlUtils::CheckUrlCorrectness(commonPath), "Invalid url path!");
+	UTREE_ASSERT(UrlUtils<URLChar_T, URLTraits_T, typename Router::allocator_type>::CheckUrlCorrectness(commonPath), "Invalid url path!");
 
 	auto EmptyLambda = [](auto&& v) { return std::addressof(v); };
 	auto AllAsStringToStringView = [](auto&& asString) // const char*, char[N], 
@@ -1270,7 +679,7 @@ Router<EndpointData_T, URLChar_T>::InsertSiblings(
 			possible to check all urls in time!
 		*/
 		auto& key = pack[i].first;
-		UTREE_ASSERT(UrlUtils::CheckUrlCorrectness(pack[i].first) && 
+		UTREE_ASSERT(UrlUtils<URLChar_T, URLTraits_T, typename Router::allocator_type>::CheckUrlCorrectness(pack[i].first) && 
 		// TODO: optimization search, if found second '/' break loop;
 			(std::count(key.data(), key.data() + key.length(), static_cast<URLChar_T>('/')) == 1), "Invalid url path!");
 	}
@@ -1325,7 +734,7 @@ Router<EndpointData_T, URLChar_T>::InsertSiblings(
 // typename Router<EndpointData_T::LNRIterator>
 // Router<EndpointData_T, URLChar_T>::FindRoute(const std::string& url) /*noexcept*/
 // {
-// 	if (UrlUtils::CheckUrlCorrectness(url))
+// 	if (UrlUtils<URLChar_T, URLTraits_T, typename Router::allocator_type>::CheckUrlCorrectness(url))
 // 	{
 // 		// what happens if url ends with `/'
 // 		if (auto child = m_router.get_child_optional(path_type{url, '/'});
@@ -1361,7 +770,7 @@ Router<EndpointData_T, URLChar_T>::InsertSiblings(
 // 	const typename Routers_t::key_type& url, 
 // 	EndpointData_t* endpoint_data) noexcept(false)
 // {
-// 	UrlUtils::CheckUrlCorrectnessThrow_V(url);
+// 	UrlUtils<URLChar_T, URLTraits_T, typename Router::allocator_type>::CheckUrlCorrectnessThrow_V(url);
 
 // 	size_t back_shift = url.back() == '/' ? 1 : 0;
 
@@ -1380,7 +789,7 @@ Router<EndpointData_T, URLChar_T>::InsertSiblings(
 // 	static_assert(std::is_constructible_v<EndpointData_t, Args...>,
 // 		"Data type must be constructible with args pack!");
 
-// 	if (!UrlUtils::CheckUrlCorrectness(url))
+// 	if (!UrlUtils<URLChar_T, URLTraits_T, typename Router::allocator_type>::CheckUrlCorrectness(url))
 // 	{
 // 		return -1;
 // 	}
@@ -1410,7 +819,7 @@ Router<EndpointData_T, URLChar_T>::InsertSiblings(
 // 	static_assert(std::is_constructible_v<EndpointData_t, Args...>,
 // 		"Data type must be constructible with args pack!");
 
-// 	UrlUtils::CheckUrlCorrectnessThrow_V(url);
+// 	UrlUtils<URLChar_T, URLTraits_T, typename Router::allocator_type>::CheckUrlCorrectnessThrow_V(url);
 
 // 	std::allocator<EndpointData_t> alloc;
 // 	EndpointData_t* temp = std::allocator_traits<decltype(alloc)>::allocate(alloc, 1);
@@ -1425,7 +834,7 @@ Router<EndpointData_T, URLChar_T>::InsertSiblings(
 // Router<EndpointData_T, URLChar_T>::FindRoute(std::nothrow_t nthw,
 // 	const typename Routers_t::key_type& url) noexcept
 // {
-// 	if (!UrlUtils::CheckUrlCorrectness(url))
+// 	if (!UrlUtils<URLChar_T, URLTraits_T, typename Router::allocator_type>::CheckUrlCorrectness(url))
 // 	{
 // 		return nullptr;
 // 	}
@@ -1453,7 +862,7 @@ Router<EndpointData_T, URLChar_T>::InsertSiblings(
 // Router<EndpointData_T, URLChar_T>::FindRoute(
 // 	const typename Routers_t::key_type& url) noexcept(false)
 // {
-// 	UrlUtils::CheckUrlCorrectnessThrow_V(url);
+// 	UrlUtils<URLChar_T, URLTraits_T, typename Router::allocator_type>::CheckUrlCorrectnessThrow_V(url);
 
 // 	size_t back_shift = url.back() == '/' ? 1 : 0;
 
@@ -1472,7 +881,7 @@ Router<EndpointData_T, URLChar_T>::InsertSiblings(
 // {
 // 	(void)nthw;
 
-// 	if (UrlUtils::CheckUrlCorrectness(url))
+// 	if (UrlUtils<URLChar_T, URLTraits_T, typename Router::allocator_type>::CheckUrlCorrectness(url))
 // 	{
 // 		return nullptr;
 // 	}
@@ -1500,7 +909,7 @@ Router<EndpointData_T, URLChar_T>::InsertSiblings(
 // Router<EndpointData_T, URLChar_T>::FindRoute(
 // 	const typename Routers_t::key_type& url) const noexcept(false)
 // {
-// 	UrlUtils::CheckUrlCorrectnessThrow_V(url);
+// 	UrlUtils<URLChar_T, URLTraits_T, typename Router::allocator_type>::CheckUrlCorrectnessThrow_V(url);
 
 // 	size_t back_shift = url.back() == '/' ? 1 : 0;
 
@@ -1520,9 +929,9 @@ Router<EndpointData_T, URLChar_T>::InsertSiblings(
 // 		const typename Routers_t::key_type& url) noexcept(false)
 // {
 // 	auto route_pieces = 
-// 		UrlUtils::Split(url);
+// 		UrlUtils<URLChar_T, URLTraits_T, typename Router::allocator_type>::Split(url);
 
-// 	UrlUtils::CheckUrlCorrectnessThrow_V(url);
+// 	UrlUtils<URLChar_T, URLTraits_T, typename Router::allocator_type>::CheckUrlCorrectnessThrow_V(url);
 
 // 	std::string available_route; available_route.reserve(32);
 // 	Routers_t* subtree = &m_router;
@@ -1556,9 +965,9 @@ Router<EndpointData_T, URLChar_T>::InsertSiblings(
 // 		const typename Routers_t::key_type& url) const noexcept(false)
 // {
 // 	auto route_pieces = 
-// 		UrlUtils::Split(url);
+// 		UrlUtils<URLChar_T, URLTraits_T, typename Router::allocator_type>::Split(url);
 
-// 	UrlUtils::CheckUrlCorrectnessThrow_V(url);
+// 	UrlUtils<URLChar_T, URLTraits_T, typename Router::allocator_type>::CheckUrlCorrectnessThrow_V(url);
 
 // 	std::string available_route; available_route.reserve(32);
 // 	Routers_t* subtree = &m_router;
