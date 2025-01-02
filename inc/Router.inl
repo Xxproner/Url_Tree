@@ -121,7 +121,7 @@ template <typename EndpointData_T, typename URLChar_T>
 typename Router<EndpointData_T, URLChar_T>::size_type
 Router<EndpointData_T, URLChar_T>::size() const noexcept
 {
-	return std::count(begin(), end());
+	return std::distance(cbegin(), cend());
 };
 
 
@@ -133,7 +133,10 @@ noexcept(std::is_nothrow_move_assignable_v<Self_T>)
 {
 	if (this != &other)
 	{
-		// TODO:
+		std::swap(m_host, other.m_host);
+		std::swap(m_scheme, other.m_scheme);
+		std::swap(m_port, other.m_port);
+		m_router.swap(other.m_router);
 	}
 }
 

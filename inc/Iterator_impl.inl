@@ -1,4 +1,5 @@
 #include <memory> // addressof
+#include <iterator> // advance
 
 template <typename EndpointData_T, typename URLChar_T>
 Router<EndpointData_T, URLChar_T>::LNRIterator::LNRIterator(
@@ -52,7 +53,7 @@ template <typename EndpointData_T, typename URLChar_T>
 bool
 Router<EndpointData_T, URLChar_T>::LNRIterator::HasChild() const noexcept
 {
-	return GetRouter().begin() == GetRouter().end();
+	return GetRouter().begin() != GetRouter().end();
 };
 
 
@@ -75,18 +76,14 @@ Router<EndpointData_T, URLChar_T>::LNRIterator::operator++()
 		m_nativeIter = GetRouter().begin();
 	} else
 	{
-		Router_T* parent = Data().Parent(); // parent always exists
-		if (m_nativeIter != parent->end())
+		Router_T* parent = Data().Parent();
+		std::advance(m_nativeIter, 1);
+		if (m_nativeIter == parent->end())
 		{
-			m_nativeIter++;
-		} else
-		{
-			LNRIterator parentIter = LNRIterator{Data().Parent()};
-			*this = ++parentIter;
+			*this = LNRIterator{parent};
+			std::advance(m_nativeIter, 1);
 		}
-
-	}
-	
+	}	
 	
 	return *this;
 };
@@ -104,16 +101,13 @@ Router<EndpointData_T, URLChar_T>::LNRIterator::operator++(int)
 		m_nativeIter = GetRouter().begin();
 	} else
 	{
-		Router_T* parent = Data().Parent(); // parent always exists
-		if (m_nativeIter != parent->end())
+		Router_T* parent = Data().Parent();
+		std::advance(m_nativeIter, 1);
+		if (m_nativeIter == parent->end())
 		{
-			m_nativeIter++;
-		} else
-		{
-			LNRIterator parentIter = LNRIterator{Data().Parent()};
-			*this = ++parentIter;
+			*this = LNRIterator{parent};
+			std::advance(m_nativeIter, 1);
 		}
-
 	}
 
 	return  retIter;
@@ -166,16 +160,6 @@ Router<EndpointData_T, URLChar_T>::LNRIterator::operator!=(LNRIterator otherIter
 
 
 
-// template <typename EndpointData_T, typename URLChar_T>
-// Router<EndpointData_T, URLChar_T>::LNRIterator::LNRIterator(
-// 	Router<EndpointData_T, URLChar_T>::LNRIterator::reference node)
-// 	: m_nativeIter(GetIterFromThis(std::addressof(node)))
-// {
-//	// nothing
-// };
-
-
-
 // =================================================
 // =========== struct const_LNRIterator ============
 // =================================================
@@ -195,11 +179,11 @@ typename Router<EndpointData_T, URLChar_T>::ConstNativeIter_T
 Router<EndpointData_T, URLChar_T>::const_LNRIterator::GetIterFromThis(
 	const Router<EndpointData_T, URLChar_T>::Router_T* node) const
 {
-	const Router_T* parentOfNode = node->data().Parent();
+	const Router_T* parent = node->data().Parent();
 
-	return std::find_if(parentOfNode.begin(), parentOfNode.end(), 
-		[node](const LNRIterator& child){
-			return std::addressof(child.second) == node;
+	return std::find_if(parent->begin(), parent->end(), 
+		[node](const auto& pChildKeyValue){
+			return std::addressof(pChildKeyValue.second) == node;
 		});
 };
 
@@ -238,7 +222,7 @@ template <typename EndpointData_T, typename URLChar_T>
 bool
 Router<EndpointData_T, URLChar_T>::const_LNRIterator::HasChild() const noexcept
 {
-	return GetRouter().cbegin() == GetRouter().cend();
+	return GetRouter().begin() != GetRouter().end();
 };
 
 
@@ -249,17 +233,15 @@ Router<EndpointData_T, URLChar_T>::const_LNRIterator::operator++()
 {
 	if (HasChild())
 	{
-		m_constNativeIter = GetRouter().cbegin();
+		m_constNativeIter = GetRouter().begin();
 	} else
 	{
-		Router_T* parent = Data().Parent(); // parent always exists
-		if (m_constNativeIter != parent->cend())
+		Router_T* parent = Data().Parent();
+		std::advance(m_constNativeIter, 1);
+		if (m_constNativeIter == parent->end())
 		{
-			m_constNativeIter++;
-		} else
-		{
-			LNRIterator parentIter = const_LNRIterator{Data().Parent()};
-			*this = ++parentIter;
+			*this = const_LNRIterator{parent};
+			std::advance(m_constNativeIter, 1);
 		}
 
 	}
@@ -277,19 +259,16 @@ Router<EndpointData_T, URLChar_T>::const_LNRIterator::operator++(int)
 	
 	if (HasChild())
 	{
-		m_constNativeIter = GetRouter().cbegin();
+		m_constNativeIter = GetRouter().begin();
 	} else
 	{
-		Router_T* parent = Data().Parent(); // parent always exists
-		if (m_constNativeIter != parent->cend())
+		Router_T* parent = Data().Parent();
+		std::advance(m_constNativeIter);
+		if (m_constNativeIter == parent->cend())
 		{
-			m_constNativeIter++;
-		} else
-		{
-			LNRIterator parentIter = const_LNRIterator{Data().Parent()};
-			*this = ++parentIter;
+			*this = const_LNRIterator{parent};
+			std::advance(m_constNativeIter, 1);
 		}
-
 	}
 
 	return retIter;

@@ -58,7 +58,7 @@ int main()
 	assert(pair.first->data() == 10);
 
 
-	pair = router.InsertRoute("news/en", 12, "realm");
+	pair = router.InsertRoute("news/en", 12, "realm"); // == (12, true)
 	assert(pair.second);
 	assert(pair.first->data() == 12);
 
@@ -100,15 +100,17 @@ int main()
 
 	{
 		/* iterating */
-		for (auto iter = router.begin(); iter != router.end(); iter++)
+		for (auto iter = router.begin(); iter != router.end(); ++iter)
 		{
 			std::cout << (*iter).data() << std::endl;
 		}
 	}
 
+	assert(router.size() == 3);
+	assert(!router.empty());
+
+	std::cout << router.max_size() << std::endl;
 	// router.InsertSiblings("news/lang_ru", "today", 10, "yesterday", 9);
-
 	router.clear();
-
 	return 0;
 }

@@ -142,7 +142,8 @@ class Router
 {
 	// EndpointData_T is comparable with bool to indicate whether initiate or not
 public:
-	struct LNRIterator; 
+	struct LNRIterator;
+	struct const_LNRIterator;
 private:
 
 	using Self_T = Router<EndpointData_T, URLChar_T>;
@@ -183,7 +184,7 @@ private:
 
 
 
-		Node_T(EndpointData_T data, const char* realm, Router_T* parent);
+		Node_T(EndpointData_T data, const char* realm, Router_T* const parent = nullptr);
 
 
 
@@ -231,6 +232,7 @@ private:
 
 
 		friend struct LNRIterator;
+		friend struct const_LNRIterator;
 	};
 
 
@@ -279,20 +281,20 @@ public:
 	struct LNRIterator
 	{
 	private:
-		using room_type = Self_T;
+		using Room_T = Self_T;
 	public:
-#if !__cplusplus > 202002L
+#if __cplusplus < 202002L
 		using value_type = std::add_const_t<
-			typename room_type::value_type>; // removed in c++20
-#endif // !__cplusplus > 202002L
+			typename Room_T::value_type>; // removed
+#endif // __cplusplus < 202002L
 
 		using difference_type = typename NativeIter_T::difference_type;
-		// using reference = typename NativeIter_T::reference_type;
 		using reference = std::add_lvalue_reference_t<value_type>;
 		using pointer = std::add_pointer_t<value_type>;
 		using iterator_category = std::forward_iterator_tag;
 
 	private:
+		// maybe add first and second to imitate
 		NativeIter_T m_nativeIter;
 		
 
@@ -301,15 +303,15 @@ public:
 
 
 
-		LNRIterator(typename room_type::Router_T*);
+		LNRIterator(typename Room_T::Router_T*);
 
 
 
-		LNRIterator(typename room_type::Router_T&);
+		LNRIterator(typename Room_T::Router_T&);
 
 
 
-		NativeIter_T GetIterFromThis(typename room_type::Router_T* node) const;
+		NativeIter_T GetIterFromThis(typename Room_T::Router_T* node) const;
 
 
 
@@ -331,36 +333,41 @@ public:
 		LNRIterator& operator++();
 
 
+
 		LNRIterator operator++(int);
+
 
 
 		reference operator*() const;
 
 
+
 		pointer operator->() const;
 
 
+		
 		bool operator!=(LNRIterator other) const;
 
 
+
 		bool operator==(LNRIterator other) const;
+
 
 
 		friend Router<EndpointData_T, URLChar_T>;
 	};
 	using iterator = struct LNRIterator;
 
-	struct const_LNRIterator
+	struct const_LNRIterator // std::iterator deprecated in c++17
 	{
 	private:
-		using room_type = Self_T;
+		using Room_T = Self_T;
+	public:
 #if __cplusplus < 202002L
 		using value_type = std::add_const_t<
-			typename room_type::value_type>; // removed in c++20
-#endif // !__cplusplus > 202002L
-	public:
+			typename Room_T::value_type>; // removed
+#endif // __cplusplus < 202002L
 		using difference_type = typename ConstNativeIter_T::difference_type;
-		// using reference = typename NativeIter_T::reference_type;
 		using reference = std::add_lvalue_reference_t<value_type>;
 		using pointer = std::add_pointer_t<value_type>;
 		using iterator_category = std::forward_iterator_tag;
@@ -374,19 +381,19 @@ public:
 
 
 
-		const_LNRIterator(typename room_type::iterator);
+		const_LNRIterator(typename Room_T::iterator);
 
 
 
-		const_LNRIterator(const typename room_type::Router_T*);
+		const_LNRIterator(const typename Room_T::Router_T*);
 
 
 
-		const_LNRIterator(const typename room_type::Router_T&);
+		const_LNRIterator(const typename Room_T::Router_T&);
 
 
 
-		ConstNativeIter_T GetIterFromThis(const typename room_type::Router_T* node) const;
+		ConstNativeIter_T GetIterFromThis(const typename Room_T::Router_T* node) const;
 
 
 

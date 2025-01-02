@@ -28,7 +28,7 @@ Router<EndpointData_T, URLChar_T>::Node_T::Node_T(
 	, m_realm(otherNode.m_realm)
 	, m_ptrParent(otherNode.m_ptrParent)
 {
-	// nothing
+	/* nothing */
 };
 
 
@@ -41,6 +41,7 @@ noexcept(std::is_nothrow_move_constructible_v<EndpointData_T>)
 	, m_realm(std::exchange(otherNode.m_realm, nullptr))
 	, m_ptrParent(std::exchange(otherNode.m_ptrParent, nullptr))
 {
+	/* nothing */
 };
 
 
@@ -84,7 +85,7 @@ template <typename EndpointData_T, typename URLChar_T>
 typename Router<EndpointData_T, URLChar_T>::Router_T*
 Router<EndpointData_T, URLChar_T>::Node_T::Parent() const
 {
-	return m_ptrParent;	
+	return m_ptrParent;
 };
 
 
@@ -93,23 +94,6 @@ template <typename EndpointData_T, typename URLChar_T>
 typename Router<EndpointData_T, URLChar_T>::Router_T*
 Router<EndpointData_T, URLChar_T>::Node_T::Grandparent() const
 {
-	// data() return not valid ref
-	Router_T* parent = Parent(); // for debug
-
+	Router_T* parent = Parent();
 	return parent->data().Parent();
 };
-
-
-
-// template <typename EndpointData_T, typename URLChar_T>
-// Router<EndpointData_T, URLChar_T>::Node_T::Node_T(
-// 	EndpointData_T data
-// 	, std::string realm
-// 	, typename Router<EndpointData_T, URLChar_T>::Router_T* const ptrParent)
-	
-// 	: m_endpointData(std::move(data))
-// 	, m_realm(std::move(realm))
-// 	, m_ptrParent(ptrParent)
-// {
-// 	// nothing
-// };
