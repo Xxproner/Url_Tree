@@ -40,7 +40,7 @@ template <
 	typename Traits_T,
 	typename Alloc_T
 >
-std::basic_regex<Char_T, Traits_T> UrlUtils<Char_T, Traits_T, Alloc_T>::m_urlPathRegex(
+std::basic_regex<Char_T, std::regex_traits<Char_T>> UrlUtils<Char_T, Traits_T, Alloc_T>::m_urlPathRegex(
 	GetUrlPathRegex<Char_T>());
 
 

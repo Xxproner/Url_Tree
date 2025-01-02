@@ -207,7 +207,7 @@ private:
 		const EndpointData_T& data() const noexcept { return m_endpointData; };
 	private:
 		const char* m_realm;
-		Router_T* const m_ptrParent;
+		Router_T* m_ptrParent; // not const 'cause can be changed
 
 
 		Router_T* Grandparent() const;
@@ -253,9 +253,10 @@ private:
 public:
 	
 	// Requirement of AllocatorAwareContainer
-	// using value_type = typename rebindA_T::value_type;
-	
 	using value_type = Node_T;
+
+	using allocator_type = std::allocator<value_type>;
+
 	using reference = std::add_lvalue_reference_t<value_type>;
 	using const_reference = const value_type&;
 
@@ -410,16 +411,36 @@ public:
 	// 		const_iterator hint);
 
 
-	iterator FindRoute(const Key_T& urlPath) /*noexcept*/;
+	iterator FindRoute(const Key_T& urlPath);
 
 
-	// iterator FindRoute(const Key_T& urlPath, std::nothrow_t) noexcept;
+
+	const_iterator FindRoute(const Key_T& urlPath) const;
 
 
-	iterator FindRouteOrNearestParent(const Key_T& urlPath) /*noexcept*/;
+
+	iterator FindRoute(const Key_T& urlPath, std::nothrow_t) noexcept;
 
 
-	// iterator FindRouteOrNearestParent(const Key_T& urlPath, std::nothrow_t) noexcept;
+
+	const_iterator FindRoute(const Key_T& urlPath, std::nothrow_t) const noexcept;
+
+
+
+	iterator FindRouteOrNearestParent(const Key_T& urlPath);
+
+
+
+	const_iterator FindRouteOrNearestParent(const Key_T& urlPath) const;
+
+
+
+	iterator FindRouteOrNearestParent(const Key_T& urlPath, std::nothrow_t) noexcept;
+
+
+
+	const_iterator FindRouteOrNearestParent(const Key_T& urlPath, std::nothrow_t) const noexcept;
+
 
 
 	/* extremely hard */

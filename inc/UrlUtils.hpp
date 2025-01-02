@@ -47,7 +47,7 @@ public:
 
 
 private:
-	static std::basic_regex<Char_T, Traits_T> m_urlPathRegex;
+	static std::basic_regex<Char_T, std::regex_traits<Char_T>> m_urlPathRegex;
 };
 
 
