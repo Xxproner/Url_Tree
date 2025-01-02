@@ -1,8 +1,15 @@
 #include <utility>
+#include <algorithm> // equal
+
+#if __cplusplus < 202002L
+#	include <memory>
+#endif // __cplusplus < 202002L
+
 
 #include "UrlUtils.hpp"
 #include "Node_impl.inl"
 #include "Iterator_impl.inl"
+
 
 template <typename EndpointData_T, typename URLChar_T>
 Router<EndpointData_T, URLChar_T>::Router(
@@ -14,6 +21,131 @@ Router<EndpointData_T, URLChar_T>::Router(
 {
 	// if container empty for begin(), end()
 	// m_router.put(Path_T{"#", '/'}, Node_T(EndpointData_T{}, def_realm, &m_router));
+};
+
+
+
+template <typename EndpointData_T, typename URLChar_T>
+Router<EndpointData_T, URLChar_T>::Router(const Self_T& other)
+	: m_host(other.m_host)
+	, m_scheme(other.m_scheme)
+	, m_port(other.m_port)
+	, m_router(other.m_router)
+{
+};
+
+
+
+template <typename EndpointData_T, typename URLChar_T>
+typename Router<EndpointData_T, URLChar_T>::Router_T&
+Router<EndpointData_T, URLChar_T>::operator=(const Self_T& other)
+{
+	::new((void*)this) Router_T(other);
+	return *this;
+};
+
+
+
+template <typename EndpointData_T, typename URLChar_T>
+Router<EndpointData_T, URLChar_T>::Router(Self_T&& other) 
+noexcept(std::is_nothrow_move_constructible_v<Node_T>)
+	: m_host(std::move(other.m_host))
+	, m_scheme(std::move(other.m_scheme))
+	, m_port(other.m_port)
+	, m_router(std::move(other.m_router))
+{
+	auto&& v = std::move(other);
+#if __cplusplus < 202002L
+	::new((void*)this) Router_T(v);
+#else
+	std::construct_at(this, v);
+#endif // __cplusplus < 202002L
+};
+
+
+
+template <typename EndpointData_T, typename URLChar_T>
+typename Router<EndpointData_T, URLChar_T>::Router_T&
+Router<EndpointData_T, URLChar_T>::operator=(Self_T&& other) 
+noexcept(std::is_nothrow_move_assignable_v<Node_T>)
+{
+	if (other != *this)
+	{
+		auto&& v = std::move(other);
+#if __cplusplus < 202002L
+		::new((void*)this) Router_T(v);
+#else
+		std::construct_at(this, v);
+#endif // __cplusplus < 202002L		
+	}
+
+	return *this;
+};
+
+
+
+template <typename EndpointData_T, typename URLChar_T>
+bool
+Router<EndpointData_T, URLChar_T>::operator==(const Self_T& other) const noexcept
+{
+	return std::equal(cbegin(), cend(),
+		other.cbegin(), other.cend());
+};
+
+
+
+template <typename EndpointData_T, typename URLChar_T>
+bool
+Router<EndpointData_T, URLChar_T>::operator!=(const Self_T& other) const noexcept
+{
+	return !this->operator==(other);
+};
+
+
+
+template <typename EndpointData_T, typename URLChar_T>
+typename Router<EndpointData_T, URLChar_T>::size_type
+Router<EndpointData_T, URLChar_T>::max_size() const noexcept
+{
+	return 
+#if __cplusplus < 202002L
+		allocator_type{}.max_size();
+#else
+		std::allocator_traits<allocator_type>::max_size();
+#endif
+};
+
+
+
+template <typename EndpointData_T, typename URLChar_T>
+typename Router<EndpointData_T, URLChar_T>::size_type
+Router<EndpointData_T, URLChar_T>::size() const noexcept
+{
+	return std::count(begin(), end());
+};
+
+
+
+template <typename EndpointData_T, typename URLChar_T>
+void
+Router<EndpointData_T, URLChar_T>::swap(Self_T& other)
+noexcept(std::is_nothrow_move_assignable_v<Self_T>)
+{
+	if (this != &other)
+	{
+		// TODO:
+	}
+}
+
+
+namespace std 
+{
+	template <typename T, typename T2>
+	void swap(Router<T, T2>& lhs, Router<T, T2>& rhs)
+	noexcept(std::is_nothrow_move_assignable_v<Router<T, T2>>)
+	{
+		lhs.swap(rhs);
+	}
 };
 
 
@@ -64,7 +196,7 @@ Router<EndpointData_T, URLChar_T>::end()
 
 template <typename EndpointData_T, typename URLChar_T>
 typename Router<EndpointData_T, URLChar_T>::const_iterator
-Router<EndpointData_T, URLChar_T>::cbegin()
+Router<EndpointData_T, URLChar_T>::cbegin() const
 {
 	return const_iterator(m_router.begin());
 };
@@ -73,7 +205,7 @@ Router<EndpointData_T, URLChar_T>::cbegin()
 
 template <typename EndpointData_T, typename URLChar_T>
 typename Router<EndpointData_T, URLChar_T>::const_iterator
-Router<EndpointData_T, URLChar_T>::cend()
+Router<EndpointData_T, URLChar_T>::cend() const
 {
 	return const_iterator(m_router.end());
 };
@@ -308,6 +440,15 @@ void
 Router<EndpointData_T, URLChar_T>::clear() noexcept
 {
 	m_router.clear();
+};
+
+
+
+template <typename EndpointData_T, typename URLChar_T>
+bool
+Router<EndpointData_T, URLChar_T>::empty() const noexcept
+{
+	return m_router.empty();
 };
 
 

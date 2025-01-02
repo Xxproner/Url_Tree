@@ -32,17 +32,16 @@ Router<EndpointData_T, URLChar_T>::Node_T::Node_T(
 };
 
 
-// template <typename EndpointData_T, typename URLChar_T>
-// Router<EndpointData_T, URLChar_T>::Node_T::Node_T(
-// 	Node_T&& otherNode)
-// 	: m_endpointData(std::move(otherNode.m_endpointData))
-// 	, m_realm(otherNode.m_realm)
-// 	, m_ptrParent(otherNode.m_ptrParent)
-// {
-// 	// nothing
-// 	// m_realm = nullptr;
-// 	// m_ptrParent = nullptr
-// };
+
+template <typename EndpointData_T, typename URLChar_T>
+Router<EndpointData_T, URLChar_T>::Node_T::Node_T(
+	Node_T&& otherNode)
+noexcept(std::is_nothrow_move_constructible_v<EndpointData_T>)
+	: m_endpointData(std::move(otherNode.m_endpointData))
+	, m_realm(std::exchange(otherNode.m_realm, nullptr))
+	, m_ptrParent(std::exchange(otherNode.m_ptrParent, nullptr))
+{
+};
 
 
 
@@ -63,18 +62,22 @@ Router<EndpointData_T, URLChar_T>::Node_T::operator=(
 
 
 
+template <typename EndpointData_T, typename URLChar_T>
+typename Router<EndpointData_T, URLChar_T>::Node_T&
+Router<EndpointData_T, URLChar_T>::Node_T::operator=(
+	Node_T&& otherNode)
+noexcept(std::is_nothrow_move_assignable_v<EndpointData_T>)
+{
+	if (this != &otherNode)
+	{
+		m_endpointData = std::move(m_endpointData);
+		m_realm = std::exchange(otherNode.m_realm, nullptr);
+		m_ptrParent = std::exchange(otherNode.m_ptrParent, nullptr);
+	}
 
-// template <typename EndpointData_T, typename URLChar_T>
-// typename Router<EndpointData_T, URLChar_T>::Node_T&
-// Router<EndpointData_T, URLChar_T>::Node_T::operator=(
-// 	Node_T&& otherNode)
-// {
-// 	m_endpointData = std::move(m_endpointData);
-// 	m_realm = otherNode.m_realm;
-// 	m_ptrParent = otherNode.m_ptrParent;
+	return *this;
+};
 
-// 	return *this;
-// };
 
 
 template <typename EndpointData_T, typename URLChar_T>

@@ -178,10 +178,13 @@ private:
 		EndpointData_T m_endpointData; // content
 
 
+
 		Node_T(Router_T* const parent = nullptr);
 
 
+
 		Node_T(EndpointData_T data, const char* realm, Router_T* parent);
+
 
 
 		// why should I implement this
@@ -189,19 +192,27 @@ private:
 		Node_T(const Node_T& otherNode);
 
 
+
 		Node_T& operator=(const Node_T& otherNode);
 
 
-		// Node_T(Node_T&& otherNode);
+
+		Node_T(Node_T&& otherNode)
+		noexcept(std::is_nothrow_move_constructible_v<EndpointData_T>);
+		
 
 
-		// Node_T& operator=(Node_T&& otherNode);
+		Node_T& operator=(Node_T&& otherNode)
+		noexcept(std::is_nothrow_move_assignable_v<EndpointData_T>);
+
 
 
 		const char* realm() const noexcept { return m_realm; };
 
 
+
 		EndpointData_T& data() noexcept { return m_endpointData; };
+
 
 
 		const EndpointData_T& data() const noexcept { return m_endpointData; };
@@ -210,12 +221,13 @@ private:
 		Router_T* m_ptrParent; // not const 'cause can be changed
 
 
+
 		Router_T* Grandparent() const;
 
 
+
 		Router_T* Parent() const;
-	
-		// ~Node_T() = default;
+
 
 
 		friend struct LNRIterator;
@@ -278,25 +290,38 @@ public:
 		// using reference = typename NativeIter_T::reference_type;
 		using reference = std::add_lvalue_reference_t<value_type>;
 		using pointer = std::add_pointer_t<value_type>;
-		using iterator_category = std::output_iterator_tag;
+		using iterator_category = std::forward_iterator_tag;
 
 	private:
 		NativeIter_T m_nativeIter;
 		
 
+
 		LNRIterator(NativeIter_T);
+
 
 
 		LNRIterator(typename room_type::Router_T*);
 
 
+
 		LNRIterator(typename room_type::Router_T&);
+
 
 
 		NativeIter_T GetIterFromThis(typename room_type::Router_T* node) const;
 
 
+
 		reference Data() const;
+
+
+
+		bool HasChild() const noexcept;
+
+
+
+		Router_T& GetRouter() const noexcept;
 	public:
 
 		LNRIterator() = default;
@@ -338,27 +363,42 @@ public:
 		// using reference = typename NativeIter_T::reference_type;
 		using reference = std::add_lvalue_reference_t<value_type>;
 		using pointer = std::add_pointer_t<value_type>;
-		using iterator_category = std::output_iterator_tag;
+		using iterator_category = std::forward_iterator_tag;
 
 	private:
 		ConstNativeIter_T m_constNativeIter;
 
+
+
 		const_LNRIterator(ConstNativeIter_T);
+
 
 
 		const_LNRIterator(typename room_type::iterator);
 
 
+
 		const_LNRIterator(const typename room_type::Router_T*);
+
 
 
 		const_LNRIterator(const typename room_type::Router_T&);
 
 
+
 		ConstNativeIter_T GetIterFromThis(const typename room_type::Router_T* node) const;
 
 
+
 		reference Data() const;
+
+
+
+		bool HasChild() const noexcept;
+
+
+
+		const Router_T& GetRouter() const noexcept;
 	public:
 
 		const_LNRIterator() = default;
@@ -390,6 +430,25 @@ public:
 	using size_type = std::size_t;
 	
 	Router(const Key_T& host, const Key_T& scheme, uint16_t port = 80);
+
+
+	
+	Router(const Self_T& other);
+
+
+
+	Router_T& operator=(const Self_T& other);
+
+
+	// requirements by swap func in container requirements
+	Router(Self_T&& other)
+	noexcept(std::is_nothrow_move_constructible_v<Node_T>);
+
+
+
+	Router_T& operator=(Self_T&& other)
+	noexcept(std::is_nothrow_move_assignable_v<Node_T>);
+
 
 
 	reference
@@ -460,11 +519,44 @@ public:
 
 
 
+	bool empty() const noexcept;
+
+
+
+	iterator begin();
+
+
+
+	const_iterator cbegin() const;
+
+
+
 	iterator end();
 
 
 
-	const_iterator cend();
+	const_iterator cend() const;
+
+
+
+	bool operator==(const Self_T& other) const noexcept;
+
+
+
+	bool operator!=(const Self_T& other) const noexcept;
+
+
+
+	size_type size() const noexcept;
+
+
+
+	size_type max_size() const noexcept;
+
+
+
+	void swap(Self_T& other)
+	noexcept(std::is_nothrow_move_assignable_v<Self_T>);
 private:
 
 	template <typename T, std::size_t>
@@ -522,13 +614,6 @@ private:
 
 
 
-	iterator begin();
-
-
-
-	const_iterator cbegin();
-
-
 	template <typename... Args>
 	// need expand for all that convertable for Key_T
 	Key_T
@@ -546,6 +631,16 @@ private:
 // public:
 	Router_T m_router;
 };
+
+
+namespace std 
+{
+	template <typename T, typename T2>
+	void swap(Router<T, T2>& lhs, Router<T, T2>& rhs)
+	noexcept(std::is_nothrow_move_assignable_v<Router<T, T2>>);
+
+}; // namespace std
+
 
 #include "Router.inl"
 

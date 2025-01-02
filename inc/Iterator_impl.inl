@@ -49,10 +49,45 @@ Router<EndpointData_T, URLChar_T>::LNRIterator::LNRIterator(
 
 
 template <typename EndpointData_T, typename URLChar_T>
+bool
+Router<EndpointData_T, URLChar_T>::LNRIterator::HasChild() const noexcept
+{
+	return GetRouter().begin() == GetRouter().end();
+};
+
+
+
+template <typename EndpointData_T, typename URLChar_T>
+typename Router<EndpointData_T, URLChar_T>::Router_T&
+Router<EndpointData_T, URLChar_T>::LNRIterator::GetRouter() const noexcept
+{
+	return (*m_nativeIter).second;
+};
+
+
+
+template <typename EndpointData_T, typename URLChar_T>
 typename Router<EndpointData_T, URLChar_T>::LNRIterator&
 Router<EndpointData_T, URLChar_T>::LNRIterator::operator++()
 {
-	m_nativeIter = end();
+	if (HasChild())
+	{
+		m_nativeIter = GetRouter().begin();
+	} else
+	{
+		Router_T* parent = Data().Parent(); // parent always exists
+		if (m_nativeIter != parent->end())
+		{
+			m_nativeIter++;
+		} else
+		{
+			LNRIterator parentIter = LNRIterator{Data().Parent()};
+			*this = ++parentIter;
+		}
+
+	}
+	
+	
 	return *this;
 };
 
@@ -63,7 +98,23 @@ typename Router<EndpointData_T, URLChar_T>::LNRIterator
 Router<EndpointData_T, URLChar_T>::LNRIterator::operator++(int)
 {
 	NativeIter_T retIter = m_nativeIter;
-	m_nativeIter = end();
+	
+	if (HasChild())
+	{
+		m_nativeIter = GetRouter().begin();
+	} else
+	{
+		Router_T* parent = Data().Parent(); // parent always exists
+		if (m_nativeIter != parent->end())
+		{
+			m_nativeIter++;
+		} else
+		{
+			LNRIterator parentIter = LNRIterator{Data().Parent()};
+			*this = ++parentIter;
+		}
+
+	}
 
 	return  retIter;
 };
@@ -155,6 +206,15 @@ Router<EndpointData_T, URLChar_T>::const_LNRIterator::GetIterFromThis(
 
 
 template <typename EndpointData_T, typename URLChar_T>
+const typename Router<EndpointData_T, URLChar_T>::Router_T&
+Router<EndpointData_T, URLChar_T>::const_LNRIterator::GetRouter() const noexcept
+{
+	return (*m_constNativeIter).second;
+};
+
+
+
+template <typename EndpointData_T, typename URLChar_T>
 Router<EndpointData_T, URLChar_T>::const_LNRIterator::const_LNRIterator(
 	const Router<EndpointData_T, URLChar_T>::Router_T& node)
 	: m_constNativeIter(GetIterFromThis(std::addressof(node)))
@@ -175,10 +235,35 @@ Router<EndpointData_T, URLChar_T>::const_LNRIterator::const_LNRIterator(
 
 
 template <typename EndpointData_T, typename URLChar_T>
+bool
+Router<EndpointData_T, URLChar_T>::const_LNRIterator::HasChild() const noexcept
+{
+	return GetRouter().cbegin() == GetRouter().cend();
+};
+
+
+
+template <typename EndpointData_T, typename URLChar_T>
 typename Router<EndpointData_T, URLChar_T>::const_iterator&
 Router<EndpointData_T, URLChar_T>::const_LNRIterator::operator++()
 {
-	m_constNativeIter = end();
+	if (HasChild())
+	{
+		m_constNativeIter = GetRouter().cbegin();
+	} else
+	{
+		Router_T* parent = Data().Parent(); // parent always exists
+		if (m_constNativeIter != parent->cend())
+		{
+			m_constNativeIter++;
+		} else
+		{
+			LNRIterator parentIter = const_LNRIterator{Data().Parent()};
+			*this = ++parentIter;
+		}
+
+	}
+
 	return *this;
 };
 
@@ -189,7 +274,23 @@ typename Router<EndpointData_T, URLChar_T>::const_iterator
 Router<EndpointData_T, URLChar_T>::const_LNRIterator::operator++(int)
 {
 	ConstNativeIter_T retIter = m_constNativeIter;
-	m_constNativeIter = end();
+	
+	if (HasChild())
+	{
+		m_constNativeIter = GetRouter().cbegin();
+	} else
+	{
+		Router_T* parent = Data().Parent(); // parent always exists
+		if (m_constNativeIter != parent->cend())
+		{
+			m_constNativeIter++;
+		} else
+		{
+			LNRIterator parentIter = const_LNRIterator{Data().Parent()};
+			*this = ++parentIter;
+		}
+
+	}
 
 	return retIter;
 };

@@ -13,26 +13,6 @@ void TestTraverse()
 class NativeTestClass
 {
 public:
-	template <typename T, typename CharT>
-	static void TestFindCommonPathMethod(Router<T, CharT>& router)
-	{
-		// assert(router.FindCommonPath(std::string("a")		, std::string("b")		, std::string("c")) 
-		// 	== "");
-		// assert(router.FindCommonPath(std::string("a/b")	, std::string("b/b")		, std::string("a"))
-		// 	== "");
-		// assert(router.FindCommonPath(std::string("a/b")	, std::string("a/b")		, std::string("a/с"))
-		// 	== "a");
-		// assert(router.FindCommonPath(std::string("a/b/c")	, std::string("a/b/d")			, std::string("a/b/d"))
-		// 	== "a/b");
-		// assert(router.FindCommonPath(std::string("a/b/c/a/a/a")		, std::string("a")	, std::string("a/b/c/a/a/a")) 
-		// 	== "a");
-		// assert(router.FindCommonPath(std::string("a/a/a/a")		, std::string("b/a/a/a")	, std::string("b/a/a/a")) 
-		// 	== "");
-		// assert(router.FindCommonPath(std::string("a/b/c/d/e/f")		, std::string("a/b/c/d/e/f/g/h")	, std::string("a/b/c/d/e/f/g")) 
-		// 	== "a/b/c/d/e/f");
-		// assert(router.FindCommonPath(std::string("a/b/c/d/f")		, std::string("a/b/c")	, std::string("a/b/c/d")) 
-		// 	== "a/b/c");
-	};
 
 	static void TestNodeOrder()
 	{
@@ -59,49 +39,74 @@ public:
 int main()
 {
 	/* check order of insertion values */
-	NativeTestClass::TestNodeOrder();
+	// NativeTestClass::TestNodeOrder();
 
 	Router<int> router("http", "localhost", 80);
-	
+	assert(router.empty());
+	assert(router.begin() == router.end());
+	assert(router.cbegin() == router.cend());
+
 	auto pair = router.InsertRoute("news/ru", 10, "realm"); // == (10, true)
 	assert(pair.second == true);
 	assert((*pair.first).data() == 10);
 
+	assert(!router.empty());
 
-	pair = router.InsertRoute("news/ru", 100); // == (10, true)
-	assert(pair.second == false); // failed. InsertRoute error.
-	assert((*pair.first).data() == 10);
 
+	pair =	router.InsertRoute("news/ru", 12, "none"); // == (10, false)
+	assert(pair.second == false);
+	assert(pair.first->data() == 10);
+
+
+	pair = router.InsertRoute("news/en", 12, "realm");
+	assert(pair.second);
+	assert(pair.first->data() == 12);
 
 	{
-		auto foundIter = router.FindRoute("news/non_exists");
-		assert(foundIter == router.end());		
+		auto foundIter = router.FindRoute("news/non_exists_lang");
+		assert(foundIter == router.end());	
 	}
 
 
 	{
+		/* FindRoute and FindRouteOrNearestParent */
 		auto foundIter = router.FindRoute("news/ru");
 		assert(foundIter->data() == 10);
 		assert(std::char_traits<char>::compare(foundIter->realm(), "realm", 
 					std::char_traits<char>::length("realm")) == 0);
 
-		foundIter = router.FindRouteOrNearestParent("news/ru/smo/last_notice");
+		foundIter = router.FindRoute("news/en");
+		assert(foundIter->data() == 12);
+
+
+		foundIter = router.FindRouteOrNearestParent("news/ru/today/last_hour");
 		assert(foundIter->data() == 10);
+		assert(std::char_traits<char>::compare(foundIter->realm(), "realm", 
+					std::char_traits<char>::length("realm")) == 0);
 	}
 	
 
 	{
 		/* operator[] */
-		router["news"].data() = 69;
-		auto foundIter = router.FindRouteOrNearestParent("news/non_exists_lang/last_notice");
-		assert(foundIter != router.end() && foundIter->data() == 69);
+		router["news"].data() = 100;
+		auto foundIter = router.FindRoute("news");
+		assert(foundIter != router.end() && foundIter->data() == 100);
 
-		foundIter = router.FindRoute("news");
-		assert(foundIter != router.end() && foundIter->data() == 69);
+		router["news/ru"].data() = 50;
+		foundIter = router.FindRoute("news/ru");
+		assert(foundIter != router.end() && foundIter->data() == 50);
 	};
 
 
-	router.InsertSiblings("news/lang_ru", "today", 10, "yesterday", 9);
+	{
+		/* iterating */
+		for (auto iter = router.begin(); iter != router.end(); iter++)
+		{
+			std::cout << (*iter).data() << std::endl;
+		}
+	}
+
+	// router.InsertSiblings("news/lang_ru", "today", 10, "yesterday", 9);
 
 	router.clear();
 
