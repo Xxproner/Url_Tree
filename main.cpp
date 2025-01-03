@@ -109,8 +109,22 @@ int main()
 	assert(router.size() == 3);
 	assert(!router.empty());
 
-	std::cout << router.max_size() << std::endl;
-	// router.InsertSiblings("news/lang_ru", "today", 10, "yesterday", 9);
+	// std::cout << router.max_size() << std::endl;
+	
+		{
+		/* insert route with hint */
+		auto foundIter = router.FindRoute("news/ru");
+		auto iter = router.InsertRoute_hint(foundIter, "news/ru/today", 3);
+		assert(iter.first->data() == 3);
+		assert(iter.second == true);
+
+		foundIter = router.FindRoute("news/ru/today");
+		assert(foundIter->data() == 3);
+	}
+
+	assert(router.size() == 4);
+
+
 	router.clear();
 	return 0;
 }

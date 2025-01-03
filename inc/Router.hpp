@@ -233,6 +233,7 @@ private:
 
 		friend struct LNRIterator;
 		friend struct const_LNRIterator;
+		friend Self_T; 
 	};
 
 
@@ -284,8 +285,7 @@ public:
 		using Room_T = Self_T;
 	public:
 #if __cplusplus < 202002L
-		using value_type = std::add_const_t<
-			typename Room_T::value_type>; // removed
+		using value_type = typename Room_T::value_type; // removed
 #endif // __cplusplus < 202002L
 
 		using difference_type = typename NativeIter_T::difference_type;
@@ -294,7 +294,6 @@ public:
 		using iterator_category = std::forward_iterator_tag;
 
 	private:
-		// maybe add first and second to imitate
 		NativeIter_T m_nativeIter;
 		
 
@@ -323,7 +322,11 @@ public:
 
 
 
-		Router_T& GetRouter() const noexcept;
+		Router_T& GetRouter() const noexcept; // first for value_type
+
+
+
+		const typename Room_T::Key_T& key() const noexcept; // second for value_type
 	public:
 
 		LNRIterator() = default;
@@ -354,7 +357,7 @@ public:
 
 
 
-		friend Router<EndpointData_T, URLChar_T>;
+		friend Room_T;
 	};
 	using iterator = struct LNRIterator;
 
@@ -381,10 +384,6 @@ public:
 
 
 
-		const_LNRIterator(typename Room_T::iterator);
-
-
-
 		const_LNRIterator(const typename Room_T::Router_T*);
 
 
@@ -406,30 +405,44 @@ public:
 
 
 		const Router_T& GetRouter() const noexcept;
+
+
+
+		const typename Room_T::Key_T& key() const noexcept; // second for value_type
 	public:
+		const_LNRIterator(typename Room_T::iterator);
+
+
 
 		const_LNRIterator() = default;
+
 
 
 		const_LNRIterator& operator++();
 
 
+
 		const_LNRIterator operator++(int);
+
 
 
 		reference operator*() const;
 
 
+
 		pointer operator->() const;
+
 
 
 		bool operator!=(const_LNRIterator other) const;
 
 
+
 		bool operator==(const_LNRIterator other) const;
 
 
-		friend Router<EndpointData_T, URLChar_T>;
+
+		friend Room_T;
 	};
 	using const_iterator = struct const_LNRIterator;
 
@@ -470,11 +483,16 @@ public:
 		const char* realm = def_realm);
 
 
-	// std::pair<iterator, bool> InsertRoute_hint(
-	// 		const Key_T& url,
-	// 		const EndpointData_T& value,
-	// 		const char* realm /*= def_realm*/,
-	// 		const_iterator hint);
+
+	/**
+	 * @param hint should be const but this get shit
+	 **/
+	std::pair<iterator, bool> InsertRoute_hint(
+			iterator hint,
+			const Key_T& url,
+			const EndpointData_T& value,
+			const char* realm = nullptr);
+
 
 
 	iterator FindRoute(const Key_T& urlPath);
@@ -606,15 +624,16 @@ private:
 	};
 
 
-	static std::pair<Router_T&, bool>
+	static std::pair<iterator, bool>
 	InsertChild(
 		Router_T& router, 
 		const Key_T& path,
-		const EndpointData_T& data);
+		const EndpointData_T& data,
+		const char* realm = nullptr);
 
 
 
-	static std::pair<Router_T&, bool>
+	static std::pair<iterator, bool>
 	InsertLazyDefaultChild(
 		Router_T& router,
 		const Key_T& path);
@@ -622,10 +641,17 @@ private:
 
 
 	template <typename... Args>
-	// need expand for all that convertable for Key_T
 	Key_T
 	FindCommonPath(const Key_T& url, const Args&... urls);
 	
+
+	/**
+	 * mem_fn should be const but it get shit
+	 **/
+	std::vector<iterator>
+	GetEndpointUrlPath(const Router_T& endpoint);
+
+
 
 	#if defined(UNIT_NATIVE_TEST)
 	friend class NativeTestClass;

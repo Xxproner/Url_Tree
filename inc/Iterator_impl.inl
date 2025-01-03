@@ -68,6 +68,15 @@ Router<EndpointData_T, URLChar_T>::LNRIterator::GetRouter() const noexcept
 
 
 template <typename EndpointData_T, typename URLChar_T>
+const typename Router<EndpointData_T, URLChar_T>::Key_T&
+Router<EndpointData_T, URLChar_T>::LNRIterator::key() const noexcept
+{
+	return (*m_nativeIter).first;
+};
+
+
+
+template <typename EndpointData_T, typename URLChar_T>
 typename Router<EndpointData_T, URLChar_T>::LNRIterator&
 Router<EndpointData_T, URLChar_T>::LNRIterator::operator++()
 {
@@ -194,6 +203,15 @@ const typename Router<EndpointData_T, URLChar_T>::Router_T&
 Router<EndpointData_T, URLChar_T>::const_LNRIterator::GetRouter() const noexcept
 {
 	return (*m_constNativeIter).second;
+};
+
+
+
+template <typename EndpointData_T, typename URLChar_T>
+const typename Router<EndpointData_T, URLChar_T>::Key_T&
+Router<EndpointData_T, URLChar_T>::const_LNRIterator::key() const noexcept
+{
+	return (*m_constNativeIter).first;
 };
 
 

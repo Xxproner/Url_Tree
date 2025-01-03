@@ -13,7 +13,9 @@
 
 template <typename EndpointData_T, typename URLChar_T>
 Router<EndpointData_T, URLChar_T>::Router(
-	const Key_T& host, const Key_T& scheme, uint16_t port)
+	const Key_T& host
+	, const Key_T& scheme
+	, uint16_t port)
 	: m_host(host)
 	, m_scheme(scheme)
 	, m_port(static_cast<uint16_t>(port))
@@ -26,7 +28,8 @@ Router<EndpointData_T, URLChar_T>::Router(
 
 
 template <typename EndpointData_T, typename URLChar_T>
-Router<EndpointData_T, URLChar_T>::Router(const Self_T& other)
+Router<EndpointData_T, URLChar_T>::Router(
+	const Self_T& other)
 	: m_host(other.m_host)
 	, m_scheme(other.m_scheme)
 	, m_port(other.m_port)
@@ -38,7 +41,8 @@ Router<EndpointData_T, URLChar_T>::Router(const Self_T& other)
 
 template <typename EndpointData_T, typename URLChar_T>
 typename Router<EndpointData_T, URLChar_T>::Router_T&
-Router<EndpointData_T, URLChar_T>::operator=(const Self_T& other)
+Router<EndpointData_T, URLChar_T>::operator=(
+	const Self_T& other)
 {
 	::new((void*)this) Router_T(other);
 	return *this;
@@ -47,7 +51,8 @@ Router<EndpointData_T, URLChar_T>::operator=(const Self_T& other)
 
 
 template <typename EndpointData_T, typename URLChar_T>
-Router<EndpointData_T, URLChar_T>::Router(Self_T&& other) 
+Router<EndpointData_T, URLChar_T>::Router(
+	Self_T&& other) 
 noexcept(std::is_nothrow_move_constructible_v<Node_T>)
 	: m_host(std::move(other.m_host))
 	, m_scheme(std::move(other.m_scheme))
@@ -66,7 +71,8 @@ noexcept(std::is_nothrow_move_constructible_v<Node_T>)
 
 template <typename EndpointData_T, typename URLChar_T>
 typename Router<EndpointData_T, URLChar_T>::Router_T&
-Router<EndpointData_T, URLChar_T>::operator=(Self_T&& other) 
+Router<EndpointData_T, URLChar_T>::operator=(
+	Self_T&& other) 
 noexcept(std::is_nothrow_move_assignable_v<Node_T>)
 {
 	if (other != *this)
@@ -86,7 +92,8 @@ noexcept(std::is_nothrow_move_assignable_v<Node_T>)
 
 template <typename EndpointData_T, typename URLChar_T>
 bool
-Router<EndpointData_T, URLChar_T>::operator==(const Self_T& other) const noexcept
+Router<EndpointData_T, URLChar_T>::operator==(
+	const Self_T& other) const noexcept
 {
 	return std::equal(cbegin(), cend(),
 		other.cbegin(), other.cend());
@@ -96,7 +103,8 @@ Router<EndpointData_T, URLChar_T>::operator==(const Self_T& other) const noexcep
 
 template <typename EndpointData_T, typename URLChar_T>
 bool
-Router<EndpointData_T, URLChar_T>::operator!=(const Self_T& other) const noexcept
+Router<EndpointData_T, URLChar_T>::operator!=(
+	const Self_T& other) const noexcept
 {
 	return !this->operator==(other);
 };
@@ -107,12 +115,7 @@ template <typename EndpointData_T, typename URLChar_T>
 typename Router<EndpointData_T, URLChar_T>::size_type
 Router<EndpointData_T, URLChar_T>::max_size() const noexcept
 {
-	return 
-#if __cplusplus < 202002L
-		allocator_type{}.max_size();
-#else
-		std::allocator_traits<allocator_type>::max_size();
-#endif
+	return m_router.max_size();
 };
 
 
@@ -128,7 +131,8 @@ Router<EndpointData_T, URLChar_T>::size() const noexcept
 
 template <typename EndpointData_T, typename URLChar_T>
 void
-Router<EndpointData_T, URLChar_T>::swap(Self_T& other)
+Router<EndpointData_T, URLChar_T>::swap(
+	Self_T& other)
 noexcept(std::is_nothrow_move_assignable_v<Self_T>)
 {
 	if (this != &other)
@@ -144,7 +148,9 @@ noexcept(std::is_nothrow_move_assignable_v<Self_T>)
 namespace std 
 {
 	template <typename T, typename T2>
-	void swap(Router<T, T2>& lhs, Router<T, T2>& rhs)
+	void swap(
+		Router<T, T2>& lhs
+		, Router<T, T2>& rhs)
 	noexcept(std::is_nothrow_move_assignable_v<Router<T, T2>>)
 	{
 		lhs.swap(rhs);
@@ -154,7 +160,8 @@ namespace std
 
 
 static std::string TrimString(
-	const std::string& str, char trimmer)
+	const std::string& str
+	, char trimmer)
 {
 	using str_T = std::string;
 	
@@ -224,7 +231,7 @@ Router<EndpointData_T, URLChar_T>::operator[](
 	UTREE_ASSERT (thisUrlUtils::
 		CheckUrlPathCorrectness(url), "Invalid url path!");
 
-	return InsertLazyDefaultChild(m_router, url).first.data();
+	return InsertLazyDefaultChild(m_router, url).first.Data();
 };
 
 
@@ -238,7 +245,9 @@ Router<EndpointData_T, URLChar_T>::operator[](
 template <typename EndpointData_T, typename URLChar_T>
 boost::optional<typename Router<EndpointData_T, URLChar_T>::Router_T&>
 // typename Router<EndpointData_T, URLChar_T>::Router_T*
-Router<EndpointData_T, URLChar_T>::GetDirectChildOptional(Router_T& parent, const Key_T& key)
+Router<EndpointData_T, URLChar_T>::GetDirectChildOptional(
+	Router_T& parent
+	, const Key_T& key)
 {
 	using opt = boost::optional<Router_T&>;
 
@@ -267,7 +276,9 @@ Router<EndpointData_T, URLChar_T>::GetDirectChildOptional(Router_T& parent, cons
  * */
 template <typename EndpointData_T, typename URLChar_T>
 boost::optional<typename Router<EndpointData_T, URLChar_T>::Router_T&>
-Router<EndpointData_T, URLChar_T>::GetChildOptional(Router_T& parent, const Key_T& key)
+Router<EndpointData_T, URLChar_T>::GetChildOptional(
+	Router_T& parent
+	, const Key_T& key)
 {
 	using opt = boost::optional<Router_T&>;
 
@@ -299,8 +310,10 @@ Router<EndpointData_T, URLChar_T>::GetChildOptional(Router_T& parent, const Key_
  * */
 template <typename EndpointData_T, typename URLChar_T>
 typename Router<EndpointData_T, URLChar_T>::Router_T&
-Router<EndpointData_T, URLChar_T>::PutDirectChild(Router_T& parent, 
-	const Key_T& key, const Router_T& child)
+Router<EndpointData_T, URLChar_T>::PutDirectChild(
+	Router_T& parent
+	, const Key_T& key
+	, const Router_T& child)
 {
 	bool found = false;
 	auto lower = std::lower_bound(parent.begin(), parent.end(),
@@ -335,8 +348,10 @@ Router<EndpointData_T, URLChar_T>::PutDirectChild(Router_T& parent,
  * */
 template <typename EndpointData_T, typename URLChar_T>
 typename Router<EndpointData_T, URLChar_T>::Router_T&
-Router<EndpointData_T, URLChar_T>::AddDirectChild(Router_T& parent, 
-	const Key_T& key, const Router_T& child)
+Router<EndpointData_T, URLChar_T>::AddDirectChild(
+	Router_T& parent
+	, const Key_T& key
+	, const Router_T& child)
 {
 	bool found = false;
 	auto lower = std::lower_bound(parent.begin(), parent.end(),
@@ -369,73 +384,106 @@ Router<EndpointData_T, URLChar_T>::InsertRoute(
 	, const EndpointData_T& value
 	, const char* realm)
 {
-	typedef UrlUtils<URLChar_T, URLTraits_T> thisUrlUtils;
-
-	UTREE_ASSERT(thisUrlUtils::
-		CheckUrlPathCorrectness(url), "Invalid url path");
-
-	std::vector<Key_T> urlPaths = 
-		thisUrlUtils::SplitUrlPath(url);
-	const size_t numPaths = urlPaths.size();
-
-	Router_T* parent = &m_router;
-	boost::optional<Router_T&> child = GetDirectChildOptional(*parent, urlPaths.front());
-
-	/* get child until possible */
-	size_t numCurrentPath = 1;
-	while (numCurrentPath < numPaths &&
-			child)
-	{
-		parent = std::addressof(child.get());
-		
-		child = GetDirectChildOptional(*parent, urlPaths[numCurrentPath++]);
-	}
-
-	if (child) // numCurrentPath == numPaths
-	{
-		return std::make_pair<iterator, bool>(iterator(child.get()), false);
-	} else // if (numCurrentPath == numPaths) chlid invalid -- death!
-	{
-		numCurrentPath--;
-		while ((numPaths - numCurrentPath) > 1)
-		{
-			auto& newBornChild = PutDirectChild(*parent, urlPaths[numCurrentPath++],
-				Router_T{Node_T{EndpointData_T{}, realm, parent}});
-			
-			parent = std::addressof(newBornChild);
-		}
-
-		auto& newBornChild = PutDirectChild(*parent, urlPaths.back(),
-			Router_T{Node_T{value, realm, parent}});
-
-		return std::make_pair<iterator, bool>(iterator(newBornChild), true);
-	}
+	return InsertChild(m_router, url, value, realm);
 };
 
 
-// I am not sure that is appropriate
-// template <typename EndpointData_T, typename URLChar_T>
-// std::pair<typename Router<EndpointData_T, URLChar_T>::iterator, bool>
-// Router<EndpointData_T, URLChar_T>::InsertRoute_hint(
-// 	const std::string& url
-// 	, const EndpointData_T& value
-// 	, const char* realm
-// 	, const_iterator hint)
-// {
-// 	if (!realm)
-// 	{
-// 		realm = def_realm;
-// 	}
 
-// 	// check deep
-// 	if (CheckUrlPathCorrectness(url))
-// 	{
-// 		std::vector<> 
-// 	} else 
-// 	{
-// 		URL_TREE_throw("Invalid path");
-// 	}
+// template <typename EndpointData_T, typename URLChar_T>
+// template <typename... Args>
+// std::pair<iterator, bool>
+// EmplaceRoute(
+// 	const std::string& url,
+// 	const char* realm,
+// 	Args&&... args)
+// {
+// 	return InsertRoute(url, EndpointData_T{std::forward<Args>(args)...},
+// 		def_realm);
 // };
+
+
+/**
+ * @brief return all parent endpoints of one as vector of iterators
+ * 
+ * @ret return vector<iterator> of parent endpoints
+ * NOT INCLUDING this one!
+ * */
+template <typename EndpointData_T, typename URLChar_T>
+std::vector<typename Router<EndpointData_T, URLChar_T>::iterator>
+Router<EndpointData_T, URLChar_T>::GetEndpointUrlPath(
+	const Router_T& endpoint)
+{
+	std::vector<iterator> endpointUrlPathPieces;
+	Router_T* parentEndpoint = endpoint.data().Parent();
+
+	while (parentEndpoint != std::addressof(m_router))
+	{
+		endpointUrlPathPieces.push_back(iterator{parentEndpoint});
+		parentEndpoint = parentEndpoint->data().Parent();
+	}
+
+	std::reverse(endpointUrlPathPieces.begin(), endpointUrlPathPieces.end());
+	return endpointUrlPathPieces;
+};
+
+
+
+// I am not sure that is appropriate
+// we need to check deep and it's path to assure that is 
+// available insertion
+template <typename EndpointData_T, typename URLChar_T>
+std::pair<typename Router<EndpointData_T, URLChar_T>::iterator, bool>
+Router<EndpointData_T, URLChar_T>::InsertRoute_hint(
+	iterator hint
+	, const Key_T& url
+	, const EndpointData_T& data
+	, const char* realm)
+{
+	typedef UrlUtils<URLChar_T, URLTraits_T> thisUrlUtils;
+
+	UTREE_ASSERT(thisUrlUtils::
+		CheckUrlPathCorrectness(url), "Invalid url path!");
+
+	Router_T& parentOfHint = hint.GetRouter();
+	auto endpointUrlPathPieces = GetEndpointUrlPath(parentOfHint);
+	endpointUrlPathPieces.push_back(hint);
+
+	std::size_t fakeParentNum = 0
+		, parentPos = 0
+		, oldParentPos = 0;
+
+	bool isNthChild = true;
+
+	for (std::size_t i = 0; i < endpointUrlPathPieces.size(); ++i)
+	{
+		parentPos = url.find('/', oldParentPos);
+		if (parentPos == Key_T::npos)
+		{
+			isNthChild = false;
+			break;
+		}
+
+		if (url.compare(
+				oldParentPos, parentPos - oldParentPos, endpointUrlPathPieces[i].key()) != 0)
+		{
+			isNthChild = false;
+			break;
+		}
+
+		oldParentPos = parentPos + 1;	
+		fakeParentNum++;
+	}
+	
+	Router_T* youngerAncestor = std::addressof(parentOfHint);
+	if (!isNthChild)
+	{
+		// descendant -- потомок
+		youngerAncestor = std::addressof(
+			endpointUrlPathPieces[fakeParentNum].GetRouter());
+	}
+	
+	return InsertChild(*youngerAncestor, url.substr(oldParentPos), data, realm);
+};
 
 
 template <typename EndpointData_T, typename URLChar_T>
@@ -458,7 +506,8 @@ Router<EndpointData_T, URLChar_T>::empty() const noexcept
 
 template <typename EndpointData_T, typename URLChar_T>
 typename Router<EndpointData_T, URLChar_T>::iterator
-Router<EndpointData_T, URLChar_T>::FindRoute(const Key_T& url)
+Router<EndpointData_T, URLChar_T>::FindRoute(
+	const Key_T& url)
 {
 	typedef UrlUtils<URLChar_T, URLTraits_T> thisUrlUtils;
 
@@ -478,7 +527,8 @@ Router<EndpointData_T, URLChar_T>::FindRoute(const Key_T& url)
 
 template <typename EndpointData_T, typename URLChar_T>
 typename Router<EndpointData_T, URLChar_T>::const_iterator
-Router<EndpointData_T, URLChar_T>::FindRoute(const Key_T& url) const
+Router<EndpointData_T, URLChar_T>::FindRoute(
+	const Key_T& url) const
 {
 	typedef UrlUtils<URLChar_T, URLTraits_T> thisUrlUtils;
 
@@ -496,7 +546,9 @@ Router<EndpointData_T, URLChar_T>::FindRoute(const Key_T& url) const
 
 template <typename EndpointData_T, typename URLChar_T>
 typename Router<EndpointData_T, URLChar_T>::iterator
-Router<EndpointData_T, URLChar_T>::FindRoute(const Key_T& url, std::nothrow_t) noexcept
+Router<EndpointData_T, URLChar_T>::FindRoute(
+	const Key_T& url
+	, std::nothrow_t) noexcept
 {
 	if (!UrlUtils<URLChar_T, URLTraits_T, typename Router::allocator_type>::CheckUrlPathCorrectness(url))
 	{
@@ -516,7 +568,9 @@ Router<EndpointData_T, URLChar_T>::FindRoute(const Key_T& url, std::nothrow_t) n
 
 template <typename EndpointData_T, typename URLChar_T>
 typename Router<EndpointData_T, URLChar_T>::const_iterator
-Router<EndpointData_T, URLChar_T>::FindRoute(const Key_T& url, std::nothrow_t) const noexcept
+Router<EndpointData_T, URLChar_T>::FindRoute(
+	const Key_T& url
+	, std::nothrow_t) const noexcept
 {
 	if (!UrlUtils<URLChar_T, URLTraits_T, typename Router::allocator_type>::CheckUrlPathCorrectness(url))
 	{
@@ -536,7 +590,8 @@ Router<EndpointData_T, URLChar_T>::FindRoute(const Key_T& url, std::nothrow_t) c
 
 template <typename EndpointData_T, typename URLChar_T>
 typename Router<EndpointData_T, URLChar_T>::iterator
-Router<EndpointData_T, URLChar_T>::FindRouteOrNearestParent(const Key_T& urlPath)
+Router<EndpointData_T, URLChar_T>::FindRouteOrNearestParent(
+	const Key_T& urlPath)
 {
 	typedef UrlUtils<URLChar_T, URLTraits_T> thisUrlUtils;
 
@@ -573,7 +628,8 @@ Router<EndpointData_T, URLChar_T>::FindRouteOrNearestParent(const Key_T& urlPath
 
 template <typename EndpointData_T, typename URLChar_T>
 typename Router<EndpointData_T, URLChar_T>::const_iterator
-Router<EndpointData_T, URLChar_T>::FindRouteOrNearestParent(const Key_T& urlPath) const 
+Router<EndpointData_T, URLChar_T>::FindRouteOrNearestParent(
+	const Key_T& urlPath) const 
 {
 	typedef UrlUtils<URLChar_T, URLTraits_T> thisUrlUtils;
 
@@ -610,7 +666,9 @@ Router<EndpointData_T, URLChar_T>::FindRouteOrNearestParent(const Key_T& urlPath
 
 template <typename EndpointData_T, typename URLChar_T>
 typename Router<EndpointData_T, URLChar_T>::iterator
-Router<EndpointData_T, URLChar_T>::FindRouteOrNearestParent(const Key_T& urlPath, std::nothrow_t) noexcept
+Router<EndpointData_T, URLChar_T>::FindRouteOrNearestParent(
+	const Key_T& urlPath
+	, std::nothrow_t) noexcept
 {
 	if (UrlUtils<URLChar_T, URLTraits_T, typename Router::allocator_type>::CheckUrlPathCorrectness(urlPath))
 	{
@@ -648,7 +706,9 @@ Router<EndpointData_T, URLChar_T>::FindRouteOrNearestParent(const Key_T& urlPath
 
 template <typename EndpointData_T, typename URLChar_T>
 typename Router<EndpointData_T, URLChar_T>::const_iterator
-Router<EndpointData_T, URLChar_T>::FindRouteOrNearestParent(const Key_T& urlPath, std::nothrow_t) const noexcept
+Router<EndpointData_T, URLChar_T>::FindRouteOrNearestParent(
+	const Key_T& urlPath
+	, std::nothrow_t) const noexcept
 {
 	if (UrlUtils<URLChar_T, URLTraits_T, typename Router::allocator_type>::CheckUrlPathCorrectness(urlPath))
 	{
@@ -748,8 +808,8 @@ template <typename EndpointData_T, typename URLChar_T>
 template <typename... Args>
 typename Router<EndpointData_T, URLChar_T>::Key_T
 Router<EndpointData_T, URLChar_T>::FindCommonPath(
-	const Key_T& url, 
-	const Args&... urls)
+	const Key_T& url
+	, const Args&... urls)
 {
 	// need expand for all that convertable for Key_T
 	static_assert(std::conjunction_v<std::is_same<Args, Key_T>...>, "Invalid args' types");
@@ -791,15 +851,53 @@ Router<EndpointData_T, URLChar_T>::FindCommonPath(
  * @brief Insert the node at the given path. Create any missing parents. 
  * If there already is a node at the path, nothing. */
 template <typename EndpointData_T, typename URLChar_T>
-std::pair<typename Router<EndpointData_T, URLChar_T>::Router_T&, bool>
+std::pair<typename Router<EndpointData_T, URLChar_T>::iterator, bool>
 Router<EndpointData_T, URLChar_T>::InsertChild(
-	Router_T& router,
-	const Key_T& path, 
-	const EndpointData_T& data)
+	Router_T& router
+	, const Key_T& url
+	, const EndpointData_T& data
+	, const char* realm)
 {
-	/* this router type */
-	auto iter = InsertRoute(path, data);
-	return std::make_pair(iter.first.m_nativeIter.second, iter.second);
+	typedef UrlUtils<URLChar_T, URLTraits_T> thisUrlUtils;
+
+	UTREE_ASSERT(thisUrlUtils::
+		CheckUrlPathCorrectness(url), "Invalid url path");
+
+	std::vector<Key_T> urlPaths = 
+		thisUrlUtils::SplitUrlPath(url);
+	const size_t numPaths = urlPaths.size();
+
+	Router_T* parent = &router;
+	boost::optional<Router_T&> child = GetDirectChildOptional(*parent, urlPaths.front());
+
+	/* get child until possible */
+	size_t numCurrentPath = 1;
+	while (numCurrentPath < numPaths &&
+			child)
+	{
+		parent = std::addressof(child.get());
+		
+		child = GetDirectChildOptional(*parent, urlPaths[numCurrentPath++]);
+	}
+
+	if (child) // numCurrentPath == numPaths
+	{
+		return std::make_pair<iterator, bool>(iterator(child.get()), false);
+	} // else / if (numCurrentPath == numPaths) chlid invalid -- death!
+
+	numCurrentPath--;
+	while ((numPaths - numCurrentPath) > 1)
+	{
+		auto& newBornChild = PutDirectChild(*parent, urlPaths[numCurrentPath++],
+			Router_T{Node_T{EndpointData_T{}, realm, parent}});
+		
+		parent = std::addressof(newBornChild);
+	}
+
+	auto& newBornChild = PutDirectChild(*parent, urlPaths.back(),
+		Router_T{Node_T{data, realm, parent}});
+
+	return std::make_pair<iterator, bool>(iterator{newBornChild}, true);
 }
 
 
@@ -811,10 +909,10 @@ Router<EndpointData_T, URLChar_T>::InsertChild(
  * child was inserted
  */
 template <typename EndpointData_T, typename URLChar_T>
-std::pair<typename Router<EndpointData_T, URLChar_T>::Router_T&, bool>
+std::pair<typename Router<EndpointData_T, URLChar_T>::iterator, bool>
 Router<EndpointData_T, URLChar_T>::InsertLazyDefaultChild(
-	Router_T& router,
-	const Key_T& path)
+	Router_T& router
+	, const Key_T& path)
 {
 	/**
 	 * REPLACE: REPLACE NODE
@@ -885,7 +983,8 @@ public:
 	// 	std::is_same_v<std::invoke_result<S_translator>, S>, "Invalid tranlators!");
 
 	template <typename... Args>
-	std::array<std::pair<F,S>, SIZE> Fold(Args&&... args)
+	std::array<std::pair<F,S>, SIZE> Fold(
+		Args&&... args)
 	{
 		PlacementMakePair(0, std::forward<Args>(args)...);
 		return std::move(foldingArray);
@@ -893,9 +992,10 @@ public:
 private:
 	template <typename T1, typename T2, typename... Args>
 	void PlacementMakePair(
-		std::size_t& offset,
-		T1&& first, T2&& second,
-		Args&&... args)
+		std::size_t& offset
+		, T1&& first
+		, T2&& second
+		, Args&&... args)
 	{
 		foldingArray[offset] = std::make_pair(F_translator{}->operator()(first), S_translator{}->operator()(second));
 		++offset;
@@ -906,9 +1006,10 @@ private:
 
 	template <typename T1, typename T2, typename... Args>
 	void PlacementMakePair(
-		std::size_t&& offset, 
-		T1&& first, T2&& second,
-		Args&&... args)
+		std::size_t&& offset
+		, T1&& first
+		, T2&& second
+		, Args&&... args)
 	{
 		foldingArray[offset] = std::make_pair(F_translator{}->operator()(first), S_translator{}->operator()(second));
 		++offset;
@@ -936,7 +1037,8 @@ template <typename EndpointData_T, typename URLChar_T>
 template <typename... Args>
 std::array<std::pair<typename Router<EndpointData_T, URLChar_T>::iterator, bool>, sizeof... (Args) / 2>
 Router<EndpointData_T, URLChar_T>::InsertSiblings(
-	const Key_T& commonPath, Args&&... args)
+	const Key_T& commonPath
+	, Args&&... args)
 {
 	/* Args == const [Key_T|const URLChar_T]& , const EndpointData_t&, Key_T& and etc */
 	static_assert(metaUtils::SelectionOp<InsertionFusion, Args...>::value(
@@ -1015,267 +1117,3 @@ Router<EndpointData_T, URLChar_T>::InsertSiblings(
 
 	// return arrIterAndIsInserted;
 }
-
-
-// template <typename EndpointData_T, typename URLChar_T>
-// typename Router<EndpointData_T::LNRIterator>
-// Router<EndpointData_T, URLChar_T>::FindRoute(const std::string& url) /*noexcept*/
-// {
-// 	if (UrlUtils<URLChar_T, URLTraits_T, typename Router::allocator_type>::CheckUrlPathCorrectness(url))
-// 	{
-// 		// what happens if url ends with `/'
-// 		if (auto child = m_router.get_child_optional(Path_T{url, '/'});
-// 				child)
-// 		{
-// 			return LNRIterator{child.get()};
-// 		}
-// 	} else 
-// 	{	
-// 		URL_TREE_throw( "Invalid path";)	
-// 	}
-
-// 	return end();
-// };
-
-
-// template <typename EndpointData_T, typename URLChar_T>
-// template <typename... Args>
-// std::pair<iterator, bool>
-// EmplaceRoute(
-// 	const std::string& url,
-// 	const char* realm,
-// 	Args&&... args)
-// {
-// 	return InsertRoute(url, EndpointData_T{std::forward<Args>(args)...},
-// 		def_realm);
-// };
-
-
-// template <typename EndpointData_T>, typename URLChar_T 
-// int 
-// Router<EndpointData_T, URLChar_T>::AddRoute(
-// 	const typename Routers_t::Key_T& url, 
-// 	EndpointData_t* endpoint_data) noexcept(false)
-// {
-// 	UrlUtils<URLChar_T, URLTraits_T, typename Router::allocator_type>::CheckUrlPathCorrectnessThrow_V(url);
-
-// 	size_t back_shift = url.back() == '/' ? 1 : 0;
-
-// 	m_router.put(ptree::Path_T{url.substr(1ul, url.length() - back_shift), '/'},
-// 		std::shared_ptr<EndpointData_t>{endpoint_data});
-	
-// 	return 0;
-// };
-
-
-// template <typename EndpointData_T, typename URLChar_T>
-// template <typename... Args> 
-// int Router<EndpointData_T, URLChar_T>::AddRoute(std::nothrow_t nthw,
-// 	const typename Routers_t::Key_T& url, Args&&... args) noexcept
-// {
-// 	static_assert(std::is_constructible_v<EndpointData_t, Args...>,
-// 		"Data type must be constructible with args pack!");
-
-// 	if (!UrlUtils<URLChar_T, URLTraits_T, typename Router::allocator_type>::CheckUrlPathCorrectness(url))
-// 	{
-// 		return -1;
-// 	}
-
-
-// 	try
-// 	{
-// 		std::allocator<EndpointData_t> alloc;
-// 		EndpointData_t* temp = std::allocator_traits<decltype(alloc)>::allocate(alloc, 1);
-// 		std::allocator_traits<decltype(alloc)>::construct(alloc, temp, std::forward<Args>(args)...);
-
-// 		return AddRoute(nthw, url, temp);
-// 	} catch(...)
-// 	{
-// 		// pass:
-// 	}
-
-// 	return -1;
-// };
-
-
-// template <typename EndpointData_T, typename URLChar_T>
-// template <typename... Args> 
-// int Router<EndpointData_T, URLChar_T>::AddRoute(
-// 	const typename Routers_t::Key_T& url, Args&&... args) noexcept(false)
-// {
-// 	static_assert(std::is_constructible_v<EndpointData_t, Args...>,
-// 		"Data type must be constructible with args pack!");
-
-// 	UrlUtils<URLChar_T, URLTraits_T, typename Router::allocator_type>::CheckUrlPathCorrectnessThrow_V(url);
-
-// 	std::allocator<EndpointData_t> alloc;
-// 	EndpointData_t* temp = std::allocator_traits<decltype(alloc)>::allocate(alloc, 1);
-// 	std::allocator_traits<decltype(alloc)>::construct(alloc, temp, std::forward<Args>(args)...);
-
-// 	return AddRoute(url, temp);
-// };
-
-
-// template <typename EndpointData_T>, typename URLChar_T	
-// typename Router<EndpointData_T, URLChar_T>::EndpointData_t*
-// Router<EndpointData_T, URLChar_T>::FindRoute(std::nothrow_t nthw,
-// 	const typename Routers_t::Key_T& url) noexcept
-// {
-// 	if (!UrlUtils<URLChar_T, URLTraits_T, typename Router::allocator_type>::CheckUrlPathCorrectness(url))
-// 	{
-// 		return nullptr;
-// 	}
-
-// 	try 
-// 	{
-// 		size_t back_shift = url.back() == '/' ? 1 : 0;
-
-// 		auto boost_optional_value = 
-// 			m_router.get_child_optional(ptree::Path_T{url.substr(1ul, url.length() - back_shift), '/'});
-
-// 		return boost_optional_value ? boost_optional_value->data().get() : // operator bool
-// 			nullptr;
-// 	} catch(...)
-// 	{
-// 		// nothing
-// 	}
-
-// 	return nullptr;
-// };
-
-
-// template <typename EndpointData_T>, typename URLChar_T	
-// typename Router<EndpointData_T, URLChar_T>::EndpointData_t*
-// Router<EndpointData_T, URLChar_T>::FindRoute(
-// 	const typename Routers_t::Key_T& url) noexcept(false)
-// {
-// 	UrlUtils<URLChar_T, URLTraits_T, typename Router::allocator_type>::CheckUrlPathCorrectnessThrow_V(url);
-
-// 	size_t back_shift = url.back() == '/' ? 1 : 0;
-
-// 	auto boost_optional_value = 
-// 		m_router.get_child_optional(ptree::Path_T{url.substr(1ul, url.length() - back_shift), '/'});
-
-// 	return boost_optional_value ? boost_optional_value->data().get() : // operator bool
-// 		nullptr;
-// };
-
-
-// template <typename EndpointData_T>, typename URLChar_T	
-// const typename Router<EndpointData_T, URLChar_T>::EndpointData_t* 
-// Router<EndpointData_T, URLChar_T>::FindRoute(std::nothrow_t nthw,
-// 	const typename Routers_t::Key_T& url) const noexcept
-// {
-// 	(void)nthw;
-
-// 	if (UrlUtils<URLChar_T, URLTraits_T, typename Router::allocator_type>::CheckUrlPathCorrectness(url))
-// 	{
-// 		return nullptr;
-// 	}
-
-// 	try
-// 	{
-// 		size_t back_shift = url.back() == '/' ? 1 : 0;
-
-// 		auto boost_optional_value = 
-// 			m_router.get_child_optional(ptree::Path_T{url.substr(1ul, url.length() - back_shift), '/'});
-
-// 		return boost_optional_value ? boost_optional_value->data().get() : // operator bool
-// 			nullptr;
-// 	} catch(...)
-// 	{
-// 		// nothing
-// 	}
-
-// 	return nullptr;
-// };
-
-
-// template <typename EndpointData_T>, typename URLChar_T	
-// const typename Router<EndpointData_T, URLChar_T>::EndpointData_t* 
-// Router<EndpointData_T, URLChar_T>::FindRoute(
-// 	const typename Routers_t::Key_T& url) const noexcept(false)
-// {
-// 	UrlUtils<URLChar_T, URLTraits_T, typename Router::allocator_type>::CheckUrlPathCorrectnessThrow_V(url);
-
-// 	size_t back_shift = url.back() == '/' ? 1 : 0;
-
-// 	auto boost_optional_value = 
-// 		m_router.get_child_optional(ptree::Path_T{url.substr(1ul, url.length() - back_shift), '/'});
-
-// 	return boost_optional_value ? boost_optional_value->data().get() : // operator bool
-// 		nullptr;
-
-// };
-
-
-// template <typename EndpointData_T>, typename URLChar_T	
-// std::pair<std::string, 
-// 	typename Router<EndpointData_T, URLChar_T>::EndpointData_t*>
-// Router<EndpointData_T, URLChar_T>::FindNearestRoute(
-// 		const typename Routers_t::Key_T& url) noexcept(false)
-// {
-// 	auto route_pieces = 
-// 		UrlUtils<URLChar_T, URLTraits_T, typename Router::allocator_type>::Split(url);
-
-// 	UrlUtils<URLChar_T, URLTraits_T, typename Router::allocator_type>::CheckUrlPathCorrectnessThrow_V(url);
-
-// 	std::string available_route; available_route.reserve(32);
-// 	Routers_t* subtree = &m_router;
-
-// 	for (size_t k = 1; k < route_pieces.size(); ++k)
-// 	{
-// 		available_route.push_back('/');
-
-// 		try
-// 		{
-// 			subtree = 
-// 				&subtree->get_child(ptree::Path_T{route_pieces[k].data(), '/'});
-
-// 			available_route.append(route_pieces[k]);			
-
-// 		} catch (const pt::ptree_bad_path&)
-// 		{
-// 			break;
-// 		}
-// 	}
-
-// 	available_route.pop_back(); // remove `/'
-
-// 	return {available_route, subtree->data().get()}; // RVNO?
-// };
-
-// template <typename EndpointData_T, typename URLChar_T>
-// std::pair<std::string, 
-// 	const typename Router<EndpointData_T, URLChar_T>::EndpointData_t*>
-// Router<EndpointData_T, URLChar_T>::FindNearestRoute(
-// 		const typename Routers_t::Key_T& url) const noexcept(false)
-// {
-// 	auto route_pieces = 
-// 		UrlUtils<URLChar_T, URLTraits_T, typename Router::allocator_type>::Split(url);
-
-// 	UrlUtils<URLChar_T, URLTraits_T, typename Router::allocator_type>::CheckUrlPathCorrectnessThrow_V(url);
-
-// 	std::string available_route; available_route.reserve(32);
-// 	Routers_t* subtree = &m_router;
-
-// 	for (size_t k = 1; k < route_pieces.size(); ++k)
-// 	{
-// 		available_route.push_back('/');
-
-// 		try
-// 		{
-// 			subtree = 
-// 				&subtree->get_child(ptree::Path_T{route_pieces[k].data(), '/'});
-
-// 			available_route.append(route_pieces[k]);
-// 		} catch (const pt::ptree_bad_path&)
-// 		{
-// 			break;
-// 		}
-// 	}
-
-// 	available_route.pop_back(); // remove `/'
-
-// 	return {available_route, subtree->data().get()}; // RNVO ?
-// };
